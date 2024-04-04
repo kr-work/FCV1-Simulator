@@ -1,0 +1,4 @@
+dc3client
+pytorch
+pybind11
+numpy < 2.0
