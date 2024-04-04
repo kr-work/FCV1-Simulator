@@ -10,7 +10,8 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && git submodule update --init --recursive",
+	"postCreateCommand": "git submodule update --init --recursive",
+	"postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
 	"customizations": {
 		"vscode": {
 			"extensions": [
