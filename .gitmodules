@@ -1,0 +1,6 @@
+[submodule "extern/box2d"]
+	path = extern/box2d
+    url = https://github.com/erincatto/box2d.git
+[submodule "extern/pybind11"]
+	path = extern/pybind11
+    url = https://github.com/pybind/pybind11
