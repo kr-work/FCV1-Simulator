@@ -15,6 +15,46 @@ struct NeuralNetworkInput {
 
 std::vector<NeuralNetworkInput> inputs;
 
+struct StonePosition {
+    float x;
+    float y;
+};
+
+struct Position {
+    StonePosition stone0;
+    StonePosition stone1;
+    StonePosition stone2;
+    StonePosition stone3;
+    StonePosition stone4;
+    StonePosition stone5;
+    StonePosition stone6;
+    StonePosition stone7;
+};
+
+struct TeamName {
+    Position my_team;
+    Position opponent_team;
+};
+
+struct Stones {
+    TeamName stones;
+};
+
+struct ShotVelocity {
+    float v_x;
+    float v_y;
+    int angle;
+};
+
+struct StateData {
+    Stones stones;
+    int shot;
+    bool hummer;
+    int score_diff;
+    int end;
+    ShotVelocity velocity;
+};
+
 namespace digitalcurling3 {
 struct Vector2 {
     float x;  ///< x座標
