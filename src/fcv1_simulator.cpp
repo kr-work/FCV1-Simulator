@@ -25,6 +25,8 @@ constexpr float ccw = kPi / 2.f;
 constexpr float y_upper_limit = 40.234f;
 constexpr float x_upper_limit = 2.375f;
 constexpr float x_lower_limit = -2.375f;
+constexpr float stone_x_upper_limit = x_upper_limit - 2*kStoneRadius;
+constexpr float stone_x_lower_limit = x_lower_limit + 2*kStoneRadius;
 constexpr float tee_line = 38.405f;
 constexpr float house_radius = 1.829f;
 // constexpr float stone_radius = 0.145f;
@@ -121,7 +123,6 @@ public:
     std::array<b2Body *, static_cast<std::size_t>(kStoneMax)> stone_bodies;
     Simulator(std::vector<digitalcurling3::StoneData> const &stones, bool hummer, int shot, Velocity const &velocity, float angular_velocity) : stones(stones), hummer(hummer), shot(shot), velocity(velocity), angular_velocity(angular_velocity), world(b2Vec2(0, 0)), contact_listener_(this)
     {
-
         stone_body_def.type = b2_dynamicBody;
         stone_body_def.awake = false;
         stone_body_def.bullet = true;
@@ -165,7 +166,7 @@ public:
         for (int i : in_free_guard_zone)
         {
             auto body = stone_bodies[i];
-            if (body->GetPosition().y > y_upper_limit || body->GetPosition().x > x_upper_limit || body->GetPosition().x < x_lower_limit)
+            if (body->GetPosition().y > y_upper_limit || body->GetPosition().x > stone_x_upper_limit || body->GetPosition().x < stone_x_lower_limit)
             {
                 for (int index : moved)
                 {
@@ -420,12 +421,13 @@ public:
         Simulator *simulator = new Simulator(storage, hummer, shot, velocity, angular_velocity);
         simulator->Step();
         simulated_stones = simulator->GetStones();
-        // for (auto stone : simulated_stones)
-        // {
-        //     std::cout << stone.position.x << " " << stone.position.y << std::endl;
-        // }
-        return simulated_stones;
-    }
+        for (auto stone : simulated_stones)
+        {
+            std::cout << stone.position.x << " " << stone.position.y << std::endl;
+        }
+    //     return simulated_stones;
+    // }
+};
 };
 
 // main関数
