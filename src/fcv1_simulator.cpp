@@ -25,8 +25,8 @@ constexpr float ccw = kPi / 2.f;
 constexpr float y_upper_limit = 40.234f;
 constexpr float x_upper_limit = 2.375f;
 constexpr float x_lower_limit = -2.375f;
-constexpr float stone_x_upper_limit = x_upper_limit - 2*kStoneRadius;
-constexpr float stone_x_lower_limit = x_lower_limit + 2*kStoneRadius;
+constexpr float stone_x_upper_limit = x_upper_limit - 2 * kStoneRadius;
+constexpr float stone_x_lower_limit = x_lower_limit + 2 * kStoneRadius;
 constexpr float tee_line = 38.405f;
 constexpr float house_radius = 1.829f;
 // constexpr float stone_radius = 0.145f;
@@ -67,6 +67,10 @@ inline float AngularAcceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
+py::tuple Vector2Totuple(const digitalcurling3::Vector2 &vec)
+{
+    return py::make_tuple(vec.x, vec.y);
+}
 
 class Simulator
 {
@@ -77,8 +81,8 @@ class Simulator
     float angular_velocity;
 
 public:
-    std::vector<int> is_awake;  // どのストーンが今動いているか
-    std::vector<int> moved;     // どのストーンが動いたか
+    std::vector<int> is_awake; // どのストーンが今動いているか
+    std::vector<int> moved;    // どのストーンが動いたか
     std::vector<int> on_center_line;
     std::vector<int> in_free_guard_zone;
     class ContactListener : public b2ContactListener
@@ -94,11 +98,11 @@ public:
             collision.a.id = static_cast<int>(a_body->GetUserData().pointer);
             collision.b.id = static_cast<int>(b_body->GetUserData().pointer);
 
-            instance_->is_awake.push_back(collision.a.id);
-            instance_->is_awake.push_back(collision.b.id);
-            RemoveDuplicates();
-            instance_->moved.push_back(collision.a.id);
-            instance_->moved.push_back(collision.b.id);
+            AddUniqueID(instance_->is_awake, collision.a.id);
+            AddUniqueID(instance_->is_awake, collision.b.id);
+
+            AddUniqueID(instance_->moved, collision.a.id);
+            AddUniqueID(instance_->moved, collision.b.id);
 
             b2WorldManifold world_manifold;
             contact->GetWorldManifold(&world_manifold);
@@ -109,13 +113,16 @@ public:
             // instance_->storage_.collisions.emplace_back(std::move(collision));
         }
 
-        inline void RemoveDuplicates() {
-            std::sort(instance_->is_awake.begin(), instance_->is_awake.end());
-            instance_->is_awake.erase(std::unique(instance_->is_awake.begin(), instance_->is_awake.end()), instance_->is_awake.end());
-        }
-
     private:
         Simulator *const instance_;
+
+        void AddUniqueID(std::vector<int>& list, int id)
+        {
+            if (std::find(list.begin(), list.end(), id) == list.end())
+            {
+                list.push_back(id);
+            }
+        }
     };
     b2World world;
     b2BodyDef stone_body_def;
@@ -140,7 +147,7 @@ public:
 
         for (size_t i = 0; i < kStoneMax; ++i)
         {
-            stone_body_def.userData.pointer = static_cast<uintptr_t>(i); 
+            stone_body_def.userData.pointer = static_cast<uintptr_t>(i);
             stone_bodies[i] = world.CreateBody(&stone_body_def);
             stone_bodies[i]->CreateFixture(&stone_fixture_def);
         }
@@ -153,7 +160,7 @@ public:
         for (size_t i = 0; i < kStoneMax; ++i)
         {
             auto body = stone_bodies[i];
-            float distance = std::sqrt(std::pow(body->GetPosition().x, 2) + std::pow(body->GetPosition().y-tee_line, 2));
+            float distance = std::sqrt(std::pow(body->GetPosition().x, 2) + std::pow(body->GetPosition().y - tee_line, 2));
             if (body->GetPosition().y < tee_line && distance > house_radius)
             {
                 in_free_guard_zone.push_back(i);
@@ -208,14 +215,12 @@ public:
     //     }
     // }
 
-
-
-    void Step()
+    void Step(float seconds_per_frame)
     {
         // simulate
         while (!is_awake.empty())
         {
-            for (auto& index : is_awake)
+            for (auto &index : is_awake)
             {
                 b2Vec2 const stone_velocity = stone_bodies[index]->GetLinearVelocity(); // copy
                 auto const [normalized_stone_velocity, stone_speed] = Normalize(stone_velocity);
@@ -226,7 +231,7 @@ public:
                 if (stone_speed > std::numeric_limits<float>::epsilon())
                 {
                     // ストーンの速度を計算
-                    float const new_stone_speed = stone_speed + LongitudinalAcceleration(stone_speed) * 0.001;
+                    float const new_stone_speed = stone_speed + LongitudinalAcceleration(stone_speed) * seconds_per_frame;
                     if (new_stone_speed <= 0.f)
                     {
                         stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
@@ -234,7 +239,7 @@ public:
                     }
                     else
                     {
-                        float const yaw = YawRate(stone_speed, angular_velocity) * 0.001;
+                        float const yaw = YawRate(stone_speed, angular_velocity) * seconds_per_frame;
                         float const longitudinal_velocity = new_stone_speed * std::cos(yaw);
                         float const transverse_velocity = new_stone_speed * std::sin(yaw);
                         b2Vec2 const &e_longitudinal = normalized_stone_velocity;
@@ -247,7 +252,7 @@ public:
                 // 角速度を計算
                 if (std::abs(angular_velocity) > std::numeric_limits<float>::epsilon())
                 {
-                    float const angular_accel = AngularAcceleration(stone_speed) * 0.001;
+                    float const angular_accel = AngularAcceleration(stone_speed) * seconds_per_frame;
                     float new_angular_velocity = 0.f;
                     if (std::abs(angular_velocity) <= std::abs(angular_accel))
                     {
@@ -264,7 +269,7 @@ public:
             // storage.collisions.clear();
 
             world.Step(
-                0.001,
+                seconds_per_frame,
                 8,  // velocityIterations (公式マニュアルでの推奨値は 8)
                 3); // positionIterations (公式マニュアルでの推奨値は 3)
         }
@@ -304,10 +309,10 @@ public:
                 stone_bodies[i]->SetTransform(b2Vec2(position.x, position.y), 0.f);
             }
 
-        // if (shot < 5)
-        // {
-        //     IsFreeGuardZone();
-        // }
+            // if (shot < 5)
+            // {
+            //     IsFreeGuardZone();
+            // }
         }
 
         // 自チームの全ストーン情報の後に相手チームの全ストーン情報が格納されているため、先攻後攻とshot数から、現在投球するストーンのインデックス番号を計算して、そこに速度と角速度をセットする
@@ -364,7 +369,6 @@ public:
         }
         return stones_data;
     }
-
 };
 
 // メンバ変数を持つクラスを定義
@@ -373,6 +377,7 @@ class MSSimulator
 public:
     std::vector<digitalcurling3::StoneData> storage;
     std::vector<digitalcurling3::StoneData> simulated_stones;
+    py::list simulated_stones_position;
     Velocity velocity;
     int shot;
     bool hummer;
@@ -380,9 +385,16 @@ public:
     int angle;
     float angular_velocity;
     int end;
-    MSSimulator() : storage(), velocity(), shot(), hummer(), score(), angular_velocity() {}
+    MSSimulator() : storage(), velocity(), shot(), hummer(), score(), angular_velocity() {
+        state_values.reserve(94); // 94回のシミュレーションを行った後、の盤面評価した際の値を格納する
+        x_velocities.reserve(47);
+        for (float i = -0.23; i <= 0.23; i += 0.01)
+        {
+            x_velocities.push_back(i);
+        }
+    }
 
-    void main(std::string state)
+    py::list main(std::string state)
     {
         std::vector<digitalcurling3::StoneData> simulated_stones;
         nlohmann::json state_json = nlohmann::json::parse(state);
@@ -409,25 +421,19 @@ public:
             storage.push_back(data);
         }
 
-        state_values.reserve(1602); // 1602回のシミュレーションを行った後、の盤面評価した際の値を格納する
-        x_velocities.reserve(801);
-        for (float i = -0.4; i <= 0.4; i += 0.01)
-        {
-            x_velocities.push_back(i);
-        }
-
         // int a = omp_get_max_threads();
         // std::cout << a << " concurrent threads are supported.\n";
         Simulator *simulator = new Simulator(storage, hummer, shot, velocity, angular_velocity);
-        simulator->Step();
+        simulator->Step(0.1);
         simulated_stones = simulator->GetStones();
-        for (auto stone : simulated_stones)
+        for (const auto stone : simulated_stones)
         {
-            std::cout << stone.position.x << " " << stone.position.y << std::endl;
+            simulated_stones_position.append(Vector2Totuple(stone.position));
+            // std::cout << stone.position.x << " " << stone.position.y << std::endl;
         }
-    //     return simulated_stones;
-    // }
-};
+        return simulated_stones_position;
+        
+    };
 };
 
 // main関数
