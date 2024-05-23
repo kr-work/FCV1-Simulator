@@ -213,6 +213,7 @@ namespace digitalcurling3 {
     /// \brief 位置を格納します．
 struct StoneData{
     Vector2 position;
+    StoneData(const Vector2& pos) : position(pos) {}
 };
 }
 
