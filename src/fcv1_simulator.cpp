@@ -5,13 +5,13 @@
 #include <box2d/box2d.h>
 #include <cmath>
 #include <limits>
-#include <nlohmann/json.hpp>
 #include <pybind11/stl.h>
 #include "fcv1_simulator.hpp"
 #include <omp.h> // OpenMP
 #include <set>
 #include <thread>
 #include <chrono>
+#include <mutex>
 
 // シミュレーションについては,自分のストーン情報の次に相手のストーン情報という順番にstonesに格納する
 // それと、ショット数と先攻後攻を示せば、次にどのストーン情報を用いたシミュレーションをするのかわかるはず
@@ -31,11 +31,11 @@ constexpr float stone_x_lower_limit = x_lower_limit + 2 * kStoneRadius;
 constexpr float tee_line = 38.405f;
 constexpr float house_radius = 1.829f;
 constexpr float EPSILON = std::numeric_limits<float>::epsilon();
+std::mutex cout_mutex;
 // constexpr float stone_radius = 0.145f;
 namespace py = pybind11;
-std::vector<float> x_velocities;
+std::vector<std::pair<float, float>> x_velocities;
 std::vector<float> state_values;
-using json = nlohmann::json;
 
 // 返り値1つめ: 正規化されたベクトル
 // 返り値2つめ: もとのベクトルの長さ
@@ -293,7 +293,7 @@ public:
         for (size_t i = 0; i < ally_position_size; ++i)
         {
             auto &stone = stones[i];
-            auto position = stone.position;
+            digitalcurling3::Vector2 position = stone.position;
             if (position.x == 0.f && position.y == 0.f)
             {
                 stone_bodies[i]->SetEnabled(false);
@@ -359,16 +359,15 @@ public:
     //     stone_bodies[shot]->SetAngularVelocity(angular_velocity);
     // }
 
-    std::pair<std::vector<digitalcurling3::StoneData>, bool> GetStones()
+    inline std::vector<digitalcurling3::StoneData> GetStones()
     {
-        free_guard_zone = IsInPlayarea();
         std::vector<digitalcurling3::StoneData> stones_data;
         for (auto body : stone_bodies)
         {
             auto position = body->GetPosition();
             stones_data.push_back({digitalcurling3::Vector2(position.x, position.y)});
         }
-        return {stones_data, free_guard_zone};
+        return stones_data;
     }
 };
 
@@ -377,30 +376,36 @@ class MSSimulator
 {
 public:
     std::vector<digitalcurling3::StoneData> storage;
-    std::vector<digitalcurling3::StoneData> simulated_stones;
-    py::list simulated_stones_position;
-    std::pair<std::vector<digitalcurling3::StoneData>, bool> stones_and_flag;
-    bool free_guard_zone;
+    std::vector<std::vector<digitalcurling3::StoneData>> simulated_stones;
+    std::vector<std::vector<unsigned int>> local_free_guard_zone_flags;
+    std::vector<std::vector<std::vector<digitalcurling3::StoneData>>> local_simulated_stones;
+    std::vector<unsigned int> free_guard_zone_flags;
     float y_velocity;
     std::vector<Simulator *> simulators;
     int shot;
     bool my_team_flag;
     int score;
-    int angle;
-    float angular_velocity;
     int end;
     int num_threads;
-    MSSimulator() : storage(), shot(), my_team_flag(), score(), angular_velocity() {
-        state_values.reserve(94); // 94回のシミュレーションを行った後、の盤面評価した際の値を格納する
-        x_velocities.reserve(47);
+    int thread_id;
+    int index;
+    MSSimulator() : storage(), shot(), my_team_flag(), score() {
+        state_values.reserve(96); // 94回のシミュレーションを行った後、の盤面評価した際の値を格納する
+        simulated_stones.reserve(96);
+        x_velocities.reserve(96);
+        free_guard_zone_flags.reserve(96);
         storage.reserve(16);
 
-        for (float i = -0.23; i <= 0.23; i += 0.01)
+        for (float i = -0.24; i <= 0.24; i += 0.01)
         {
-            x_velocities.push_back(i);
+            x_velocities.push_back(std::make_pair(i, cw));
+            x_velocities.push_back(std::make_pair(i, ccw));
         }
+        omp_set_num_threads(8);
         num_threads = omp_get_max_threads();
-        std::cout << num_threads << std::endl;
+        simulators.resize(num_threads);
+        local_free_guard_zone_flags.resize(num_threads, std::vector<unsigned int>(12, 0));
+        local_simulated_stones.resize(num_threads, std::vector<std::vector<digitalcurling3::StoneData>>(12));
         #pragma omp parallel num_threads(num_threads)
         {
             // Empty block. No operations are performed in the threads.
@@ -408,88 +413,71 @@ public:
     }
 
 
-    std::pair<py::list, bool> main(py::array_t<double> stone_positions, bool my_team_flag, int shot, int score, int end, double y_velocity, int angular_velocity)
+    // std::pair<py::list, bool> main(py::array_t<double> stone_positions, bool my_team_flag, int shot, int score, int end, double y_velocity, int angular_velocity)
+    void main(py::array_t<double> stone_positions, bool my_team_flag, int shot, int score, int end, double y_velocity)
     {
-        std::chrono::system_clock::time_point t1, t2, t3, t4, t5, t6, t7, t8;
-        t1 = std::chrono::system_clock::now();
         this->shot = shot;
         this->my_team_flag = my_team_flag;
         this->score = score;
         this->end = end;
         this->y_velocity = y_velocity;
-        this->angular_velocity = angular_velocity*cw;
         for (int i = 0; i < 16; i++)
         {
             storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2*i), stone_positions.at(2*i+1))));
         }
-        t2 = std::chrono::system_clock::now();
-        // for (const auto stone : storage)
-        // {
-        //     std::cout << stone.position.x << " " << stone.position.y << std::endl;
-        // }
-        // shot = state_json["shot"];
-        // hummer = state_json["hummer"];
-        // score = state_json["score_diff"];
-        // end = state_json["end"];
-        // velocity.vel = b2Vec2(state_json["velocity"]["vx"], state_json["velocity"]["vy"]);
-        // angle = state_json["velocity"]["angle"];
-        // angular_velocity = angle * cw;
-        // auto my_team_stones = state_json["stones"]["my_team"];
-        // auto opponent_team_stones = state_json["stones"]["opponent_team"];
 
-        // for (size_t i = 0; i < 8; ++i)
-        // {
-        //     digitalcurling3::StoneData data;
-
-        //     data.position = digitalcurling3::Vector2(my_team_stones["stone" + std::to_string(i) + "_position"]["x"], 
-        //                                             my_team_stones["stone" + std::to_string(i) + "_position"]["y"]);
-        //     storage.push_back(data);
-        // }
-
-        // for (size_t i = 0; i < 8; ++i)
-        // {
-        //     digitalcurling3::StoneData data;
-
-        //     data.position = digitalcurling3::Vector2(opponent_team_stones["stone" + std::to_string(i) + "_position"]["x"], 
-        //                                             opponent_team_stones["stone" + std::to_string(i) + "_position"]["y"]);
-        //     storage.push_back(data);
-        // }
-
-        // int a = omp_get_max_threads();
-        // std::cout << a << " concurrent threads are supported.\n";
-        // for (int i = 0; i < num_threads; i++) {
-        //     simulators[i] = new Simulator(storage);
-        // }
-        Simulator *simulator = new Simulator(storage);
-        t3 = std::chrono::system_clock::now();
-        simulator->ChangeShotAndFlag(this->shot, this->my_team_flag);
-        t4 = std::chrono::system_clock::now();
-        simulator->SetStones();
-        t5 = std::chrono::system_clock::now();
-        simulator->SetVelocity(-0.05, this->y_velocity, this->angular_velocity);
-        t6 = std::chrono::system_clock::now();
-        simulator->Step(0.001);
-        t7 = std::chrono::system_clock::now();
-        stones_and_flag = simulator->GetStones();
-        simulated_stones = stones_and_flag.first;
-        free_guard_zone = stones_and_flag.second;
-        for (const digitalcurling3::StoneData &stone : simulated_stones)
-        {
-            simulated_stones_position.append(Vector2Totuple(stone.position));
-            // std::cout << stone.position.x << " " << stone.position.y << std::endl;
+        for (int i = 0; i < num_threads; i++) {
+            simulators[i] = new Simulator(storage);
+            simulators[i]->ChangeShotAndFlag(this->shot, this->my_team_flag);
         }
-        t8 = std::chrono::system_clock::now();
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t4 - t3).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t5 - t4).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t6 - t5).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t7 - t6).count() << "ms" << std::endl;
-        std::cout << "main: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t8 - t7).count() << "ms" << std::endl;
-        return {simulated_stones_position, free_guard_zone};
-        
-    };
+
+        // std::vector<std::vector<unsigned int>> local_free_guard_zone_flags(num_threads, std::vector<unsigned int>(12, 0));
+        // std::vector<std::vector<std::vector<digitalcurling3::StoneData>>> local_simulated_stones(num_threads, std::vector<std::vector<digitalcurling3::StoneData>>(12));
+
+        #pragma omp parallel for num_threads(num_threads) schedule(static)
+        for (int i = 0; i < 96; ++i) {
+            int thread_id = omp_get_thread_num();
+
+            simulators[thread_id]->SetStones();
+            simulators[thread_id]->SetVelocity(x_velocities[i].first, this->y_velocity, x_velocities[i].second);
+            simulators[thread_id]->Step(0.002);
+            local_free_guard_zone_flags[thread_id][i%12] = simulators[thread_id]->IsInPlayarea();
+            local_simulated_stones[thread_id][i%12] = simulators[thread_id]->GetStones();
+        }
+        int index = 0;
+        simulated_stones.clear();
+        for (int i = 0; i < num_threads; i++) {
+            for (int j = 0; j < 12; j++) {
+                simulated_stones.push_back(local_simulated_stones[i][j]);
+            }
+        }
+
+        // for (int i = 0; i < 96; ++i) {
+        //     for (int thread_id = 0; thread_id < num_threads; ++thread_id) {
+        //         if (local_free_guard_zone_flags[thread_id][i]) {
+        //             free_guard_zone_flags[i] = local_free_guard_zone_flags[thread_id][i];
+        //             simulated_stones[i] = local_simulated_stones[thread_id][i];
+        //             break;
+        //         }
+        //     }
+        // }
+    }
 };
+//         #pragma omp parallel for num_threads(num_threads) schedule(static) private (simulated_stones, free_guard_zone_flags)
+//         for (int i = 0; i < 96; ++i) {
+//             int thread_id = omp_get_thread_num();
+
+//             simulators[thread_id]->SetStones();
+//             simulators[thread_id]->SetVelocity(x_velocities[i].first, this->y_velocity, x_velocities[i].second);
+//             simulators[thread_id]->Step(0.001);
+//             free_guard_zone_flags[i] = simulators[thread_id]->IsInPlayarea();
+//             // std::lock_guard<std::mutex> guard(cout_mutex);
+//             // simulated_stones[i] = simulators[thread_id]->GetStones();
+//             // simulated_stones[i] = stones_and_flag.first;
+//             // free_guard_zone_flags[i] = stones_and_flag.second;
+//         }        
+//     };
+// };
 
 // main関数
 
