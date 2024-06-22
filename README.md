@@ -1,5 +1,20 @@
-# DueingDQN
-状態価値と行動価値をそれぞれディープニューラルネットワークによって計算し、それらを用いてy軸方向の初速度を選択する。その選択したy軸方向の初速度と-0.4~0.4の範囲で、0.001毎に設定したx軸方向の初速度(それと回転方向cw、ccw)を用いて、計1602回のシミュレーションをC++によって行う。1602回分のシミュレーション結果の各ストーン座標を用いて、状態価値を求めるディープニューラルネットワークに入力し、最も状態価値が高いストーン座標にした投球情報を、実際の投球情報とする。
+# FCV1-Simulation
+
+
+## サブモジュールのセットアップ
+```
+git submodule update --init --recursive
+```
+
+## box2dのビルド
+```
+cd extern/box2d
+mkdir build
+cd build
+cmake -DBOX2D_BUILD_DOCS=ON -DCMAKE_INSTALL_PREFIX="./" ..
+cmake --build .
+cmake --build . --target install
+```
 
 ## 使い方
 CmakeLists.txtの4行目は、バージョン8以上必須

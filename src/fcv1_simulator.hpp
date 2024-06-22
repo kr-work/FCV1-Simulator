@@ -1,58 +1,37 @@
 #include "box2d/box2d.h"
 #include <cmath>
+#include <pybind11/pybind11.h>
+#include <nlohmann/json.hpp>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
+#include <omp.h>
+
+namespace py = pybind11;
+using json = nlohmann::json;
+
+constexpr float kStoneRadius = 0.145f;
+static constexpr ::uint8_t kStoneMax = 16;
+constexpr float kPi = 3.14159265359f;
+constexpr float cw = -kPi / 2.f;
+constexpr float ccw = kPi / 2.f;
+constexpr float y_upper_limit = 40.234f;
+constexpr float x_upper_limit = 2.375f;
+constexpr float x_lower_limit = -2.375f;
+constexpr float stone_x_upper_limit = x_upper_limit - 2 * kStoneRadius;
+constexpr float stone_x_lower_limit = x_lower_limit + 2 * kStoneRadius;
+constexpr float tee_line = 38.405f;
+constexpr float house_radius = 1.829f;
+constexpr float EPSILON = std::numeric_limits<float>::epsilon();
+constexpr size_t stones_per_simulation = 16;
+constexpr size_t num_coordinates = 2;
 
 struct Velocity{
     b2Vec2 vel;
 };
 
-struct NeuralNetworkInput {
-    std::vector<float> coordinates; // xy座標の組データが16個（32個のfloat値）
-    int shotCount; // ショット数
-    int endCount; // エンド数
-    int scoreDifference; // 得点差
-    bool isFinished; // 終了条件
-};
-
-std::vector<NeuralNetworkInput> inputs;
-
 struct StonePosition {
     float x;
     float y;
-};
-
-struct Position {
-    StonePosition stone0;
-    StonePosition stone1;
-    StonePosition stone2;
-    StonePosition stone3;
-    StonePosition stone4;
-    StonePosition stone5;
-    StonePosition stone6;
-    StonePosition stone7;
-};
-
-struct TeamName {
-    Position my_team;
-    Position opponent_team;
-};
-
-struct Stones {
-    TeamName stones;
-};
-
-struct ShotVelocity {
-    float v_x;
-    float v_y;
-    int angle;
-};
-
-struct StateData {
-    Stones stones;
-    int shot;
-    bool hummer;
-    int score_diff;
-    int end;
-    ShotVelocity velocity;
 };
 
 namespace digitalcurling3 {
@@ -213,7 +192,23 @@ namespace digitalcurling3 {
     /// \brief 位置を格納します．
 struct StoneData{
     Vector2 position;
+    StoneData() {}
     StoneData(const Vector2& pos) : position(pos) {}
+};
+}
+
+namespace digitalcurling3 {
+    /// \brief 位置を格納します．
+struct StoneDataWithID{
+    std::vector<digitalcurling3::StoneData> stones;
+    int16_t id;
+};
+}
+
+namespace digitalcurling3 {
+struct FiveLockWithID{
+    unsigned int flag;
+    int16_t id;
 };
 }
 
@@ -276,16 +271,70 @@ public:
 
 
     
-class SimulatorFCV1 {
+class Simulator {
 public:
+    explicit Simulator(std::vector<digitalcurling3::StoneData> const &stones);
     class ContactListener : public b2ContactListener {
     public:
-        ContactListener(SimulatorFCV1 * instance) : instance_(instance) {}
+        ContactListener(Simulator * instance) : instance_(instance) {}
         virtual void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) override;
+        void AddUniqueID(std::vector<int>& list, int id);
     private:
-        SimulatorFCV1 * const instance_;
+        Simulator * const instance_;
     };
+    void IsFreeGuardZone();
+    void ChangeShot(int shot);
+    bool IsInPlayarea();
+    // void OnCenterLine();
+    // void NoTickRule();
+    void Step(float seconds_per_frame);
+    void SetStones();
+    void SetVelocity(float velocity_x, float velocity_y, float angular_velocity);
+    std::vector<digitalcurling3::StoneData> GetStones();
+
 private:
     ContactListener contact_listener_;
+    std::vector<digitalcurling3::StoneData> const &stones;
+    int shot;
+    float angular_velocity;
+    std::vector<int> is_awake;
+    std::vector<int> moved;
+    std::vector<int> on_center_line;
+    std::vector<int> in_free_guard_zone;
+    bool free_guard_zone;
+    b2World world;
+    b2BodyDef stone_body_def;
+    std::array<b2Body *, static_cast<std::size_t>(kStoneMax)> stone_bodies;
+};
+
+#pragma GCC visibility push(hidden)
+class MSSimulator {
+public:
+    MSSimulator();
+    std::pair<py::array_t<double>, py::array_t<unsigned int>> main(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities);
+
+private:
+    std::vector<digitalcurling3::StoneData> storage;
+    std::vector<digitalcurling3::StoneDataWithID> simulated_stones;
+    std::vector<digitalcurling3::StoneData> state_values;
+    py::array_t<double> result;
+    std::vector<std::vector<digitalcurling3::FiveLockWithID>> local_free_guard_zone_flags;
+    std::vector<std::vector<digitalcurling3::StoneDataWithID>> local_simulated_stones;
+    std::vector<digitalcurling3::FiveLockWithID> free_guard_zone_flags;
+    digitalcurling3::FiveLockWithID five_lock_with_id;
+    digitalcurling3::StoneDataWithID simulated_stones_with_id;
+    std::vector<unsigned int> vector_five_lock_result;
+    py::array_t<unsigned int> five_lock_result;
+    std::string model_path;
+    std::vector<double> x_velocities;
+    std::vector<double> y_velocities;
+    std::vector<double> angular_velocities;
+    std::vector<Simulator *> simulators;
+    json config;
+    int shot;
+    int num_threads;
+    int thread_id;
+    int index;
+    int x_velocities_length;
 };
 
