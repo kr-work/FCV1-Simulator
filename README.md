@@ -1,7 +1,7 @@
 # FCV1-Simulation
 DC3のストーンシミュレーションをマルチスレッドで行うためのリポジトリです.
 
-## サブモジュールのセットアップ
+## Setup submodule
 ```
 git submodule update --init --recursive
 ```
@@ -54,3 +54,7 @@ main関数の引数は
 戻り値は
 1. main関数の引数にあるx・y方向の初速度ベクトル、回転方向のインデックス番号順に、シミュレーション後のストーン座標
 2. ファイブロックルールが適用されたかどうかのbool値
+
+## Dependencies
+- numpy < 2.0
+- OpenMP
