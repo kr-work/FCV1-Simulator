@@ -57,4 +57,4 @@ main関数の引数は
 
 ## Dependencies
 - numpy < 2.0
-- OpenMP
+- python >= 3.9
