@@ -36,7 +36,7 @@ srcディレクトリ内のconfig.jsonの中の
 ### Notes
 このプログラムを使用する際は
 ```
-sim = Simulator()
+simulator = Simulator()
 ```
 でSimulatorクラスをインスタンス化してください.ここで,OpenMPによるスレッド作成も行うため,
 試合開始前の準備時間中にインスタンス化してください.
