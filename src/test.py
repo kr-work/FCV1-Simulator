@@ -1,6 +1,5 @@
 import numpy as np
 from build.simulator import Simulator
-import time
 
 sim = Simulator()
 position: list = [-2.0, 34.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,

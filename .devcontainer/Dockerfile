@@ -10,7 +10,7 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh \
     && apt-get update \
-    && apt-get install python3-dev python3-pip libx11-dev xorg-dev libglu1-mesa-dev doxygen nlohmann-json3-dev -y \
+    && apt-get install python3-dev python3-pip libx11-dev xorg-dev libglu1-mesa-dev doxygen nlohmann-json3-dev libomp-11-dev libomp5-11 -y \
     && pip3 install pybind11[global] \
     && curl https://pyenv.run | bash \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
