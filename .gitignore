@@ -33,3 +33,6 @@
 
 # Build files
 src/build/
+
+# libtorch
+libtorch/*
