@@ -1,20 +1,24 @@
 import numpy as np
-from build.simulator import Simulator
+from build.simulator import StoneSimulator
+import json
 
-simulator = Simulator()
-position: list = [-2.0, 34.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+stone_simulator = StoneSimulator()
+
+with open("data.json", "r") as read_file:
+    data = json.load(read_file)
+
+position: list = data["position"]
 np_position = np.array(position)
-shot = 2
-x_velocities: list = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-y_velocities: list = [2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4, 2.4]
-angular_velocities: list = [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+shot = data["shot"]
+x_velocities: list = data["x_velocities"]
+y_velocities: list = data["y_velocities"]
+angular_velocities: list = data["angular_velocities"]
 np_x_velocities = np.array(x_velocities)
 np_y_velocities = np.array(y_velocities)
 np_angular_velocities = np.array(angular_velocities)
 
-result, flag = simulator.main(np_position, shot, np_x_velocities, np_y_velocities, np_angular_velocities)
+result, flag = stone_simulator.simulator(np_position, shot, np_x_velocities, np_y_velocities, np_angular_velocities)
+
 print(result)
 print(flag)
-
 

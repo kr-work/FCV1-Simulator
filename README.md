@@ -1,5 +1,6 @@
 # FCV1-Simulation
-DC3のストーンシミュレーションをマルチスレッドで行うためのリポジトリです.
+DC3のストーンシミュレーションをマルチスレッドにより、高速で行うためのリポジトリです.
+![simulation_speed](figure/Comparison_of%20speed.png)
 
 ## Setup submodule
 ```
@@ -36,15 +37,15 @@ srcディレクトリ内のconfig.jsonの中の
 ### Notes
 このプログラムを使用する際は
 ```
-simulator = Simulator()
+stone_simulator = StoneSimulator()
 ```
-でSimulatorクラスをインスタンス化してください.ここで,OpenMPによるスレッド作成も行うため,
+でStoneSimulatorクラスをインスタンス化してください.ここで,OpenMPによるスレッド作成も行うため,
 試合開始前の準備時間中にインスタンス化してください.
 
 
 ### How to use Simulator
 簡単な使用方法はtest.pyの通りである。
-main関数の引数は
+simulator関数の引数は
 1. 先攻・後攻の順に格納したストーン座標
 2. ストーンのショット数(0~15)
 3. x方向の初速度ベクトル
@@ -52,7 +53,7 @@ main関数の引数は
 5. 回転方向(cw->1, ccw->-1)
 
 戻り値は
-1. main関数の引数にあるx・y方向の初速度ベクトル、回転方向のインデックス番号順に、シミュレーション後のストーン座標
+1. simulator関数の引数にあるx・y方向の初速度ベクトル、回転方向のインデックス番号順に、シミュレーション後のストーン座標
 2. ファイブロックルールが適用されたかどうかのbool値
 
 ## Dependencies

@@ -271,26 +271,26 @@ public:
 
 
     
-class Simulator {
+class SimulatorFCV1 {
 public:
-    explicit Simulator(std::vector<digitalcurling3::StoneData> const &stones);
+    explicit SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones);
     class ContactListener : public b2ContactListener {
     public:
-        ContactListener(Simulator * instance) : instance_(instance) {}
+        ContactListener(SimulatorFCV1 * instance) : instance_(instance) {}
         virtual void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) override;
-        void AddUniqueID(std::vector<int>& list, int id);
+        void add_unique_id(std::vector<int>& list, int id);
     private:
-        Simulator * const instance_;
+        SimulatorFCV1 * const instance_;
     };
-    void IsFreeGuardZone();
-    void ChangeShot(int shot);
-    bool IsInPlayarea();
-    // void OnCenterLine();
-    // void NoTickRule();
-    void Step(float seconds_per_frame);
-    void SetStones();
-    void SetVelocity(float velocity_x, float velocity_y, float angular_velocity);
-    std::vector<digitalcurling3::StoneData> GetStones();
+    void is_freeguardzone();
+    void change_shot(int shot);
+    bool is_in_playarea();
+    // void on_center_line();
+    // void no_tick_rule();
+    void step(float seconds_per_frame);
+    void set_stones();
+    void set_velocity(float velocity_x, float velocity_y, float angular_velocity);
+    std::vector<digitalcurling3::StoneData> get_stones();
 
 private:
     ContactListener contact_listener_;
@@ -308,10 +308,10 @@ private:
 };
 
 #pragma GCC visibility push(hidden)
-class MSSimulator {
+class StoneSimulator {
 public:
-    MSSimulator();
-    std::pair<py::array_t<double>, py::array_t<unsigned int>> main(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities);
+    StoneSimulator();
+    std::pair<py::array_t<double>, py::array_t<unsigned int>> simulator(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;
@@ -329,7 +329,7 @@ private:
     std::vector<double> x_velocities;
     std::vector<double> y_velocities;
     std::vector<double> angular_velocities;
-    std::vector<Simulator *> simulators;
+    std::vector<SimulatorFCV1 *> simulators;
     json config;
     int shot;
     int num_threads;
