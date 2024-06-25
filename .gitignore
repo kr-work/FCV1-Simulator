@@ -36,3 +36,4 @@ src/build/
 
 # libtorch
 libtorch/*
+src/old_simulation.cpp

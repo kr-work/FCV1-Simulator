@@ -16,7 +16,7 @@
 
 // constexpr float stone_radius = 0.145f;
 
-json readConfigFile(const std::string& filepath)
+json read_configfile(const std::string& filepath)
 {
     std::ifstream ifs(filepath);
     json j;
@@ -29,7 +29,7 @@ json readConfigFile(const std::string& filepath)
 /// \brief To normalize the vector
 /// \param[in] v The vector to be normalized
 /// \returns A pair of the normalized vector and the length of the original vector
-inline std::pair<b2Vec2, float> Normalize(b2Vec2 const &v)
+inline std::pair<b2Vec2, float> normalize(b2Vec2 const &v)
 {
     b2Vec2 normalized = v;
     float length = normalized.Normalize();
@@ -39,7 +39,7 @@ inline std::pair<b2Vec2, float> Normalize(b2Vec2 const &v)
 /// \brief To calculate the longitudinal acceleration
 /// \param[in] speed The speed of the stone
 /// \returns The longitudinal acceleration
-inline float LongitudinalAcceleration(float speed)
+inline float longitudinal_acceleration(float speed)
 {
     constexpr float kGravity = 9.80665f;
     return -(0.00200985f / (speed + 0.06385782f) + 0.00626286f) * kGravity;
@@ -49,7 +49,7 @@ inline float LongitudinalAcceleration(float speed)
 /// \param[in] speed The speed of the stone
 /// \param[in] angularVelocity The angular velocity of the stone
 /// \returns The yaw rate
-inline float YawRate(float speed, float angularVelocity)
+inline float yaw_tate(float speed, float angularVelocity)
 {
     if (std::abs(angularVelocity) <= EPSILON)
     {
@@ -61,13 +61,13 @@ inline float YawRate(float speed, float angularVelocity)
 /// \brief To calculate the angular acceleration
 /// \param[in] linearSpeed The speed of the stone
 /// \returns The angular acceleration
-inline float AngularAcceleration(float linearSpeed)
+inline float angular_acceleration(float linearSpeed)
 {
     float clampedSpeed = std::max(linearSpeed, 0.001f);
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double> ConvertStoneData(const std::vector<digitalcurling3::StoneData>& simulated_stones, int simulations) {
+py::array_t<double> convert_stonedata(const std::vector<digitalcurling3::StoneData>& simulated_stones, int simulations) {
     
     
     const size_t num_coordinates = 2; // xとyの座標数
@@ -90,7 +90,7 @@ py::array_t<double> ConvertStoneData(const std::vector<digitalcurling3::StoneDat
     return result;
 }
 
-void Simulator::ContactListener::PostSolve(b2Contact *contact, const b2ContactImpulse *impulse)
+void SimulatorFCV1::ContactListener::PostSolve(b2Contact *contact, const b2ContactImpulse *impulse)
 {
     auto a_body = contact->GetFixtureA()->GetBody();
     auto b_body = contact->GetFixtureB()->GetBody();
@@ -99,11 +99,11 @@ void Simulator::ContactListener::PostSolve(b2Contact *contact, const b2ContactIm
     collision.a.id = static_cast<int>(a_body->GetUserData().pointer);
     collision.b.id = static_cast<int>(b_body->GetUserData().pointer);
 
-    AddUniqueID(instance_->is_awake, collision.a.id);
-    AddUniqueID(instance_->is_awake, collision.b.id);
+    add_unique_id(instance_->is_awake, collision.a.id);
+    add_unique_id(instance_->is_awake, collision.b.id);
 
-    AddUniqueID(instance_->moved, collision.a.id);
-    AddUniqueID(instance_->moved, collision.b.id);
+    add_unique_id(instance_->moved, collision.a.id);
+    add_unique_id(instance_->moved, collision.b.id);
 
     b2WorldManifold world_manifold;
     contact->GetWorldManifold(&world_manifold);
@@ -112,7 +112,7 @@ void Simulator::ContactListener::PostSolve(b2Contact *contact, const b2ContactIm
     collision.tangent_impulse = impulse->tangentImpulses[0];
 }
 
-void Simulator::ContactListener::AddUniqueID(std::vector<int>& list, int id)
+void SimulatorFCV1::ContactListener::add_unique_id(std::vector<int>& list, int id)
 {
     if (std::find(list.begin(), list.end(), id) == list.end())
     {
@@ -121,7 +121,7 @@ void Simulator::ContactListener::AddUniqueID(std::vector<int>& list, int id)
 }
 
 
-Simulator::Simulator(std::vector<digitalcurling3::StoneData> const &stones) : stones(stones), world(b2Vec2(0, 0)), contact_listener_(this)
+SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones) : stones(stones), world(b2Vec2(0, 0)), contact_listener_(this)
 {
     stone_body_def.type = b2_dynamicBody;
     stone_body_def.awake = false;
@@ -147,7 +147,7 @@ Simulator::Simulator(std::vector<digitalcurling3::StoneData> const &stones) : st
     world.SetContactListener(&contact_listener_);
 }
 
-void Simulator::IsFreeGuardZone()
+void SimulatorFCV1::is_freeguardzone()
 {
     for (size_t i = 0; i < kStoneMax; ++i)
     {
@@ -162,12 +162,12 @@ void Simulator::IsFreeGuardZone()
     }
 }
 
-void Simulator::ChangeShot(int shot)
+void SimulatorFCV1::change_shot(int shot)
 {
     this->shot = shot;
 }
 
-bool Simulator::IsInPlayarea()
+bool SimulatorFCV1::is_in_playarea()
 {
     for (int i : in_free_guard_zone)
     {
@@ -186,7 +186,7 @@ bool Simulator::IsInPlayarea()
 }
 
 // ノーティックルール対応用関数
-// void Simulator::OnCenterLine()
+// void SimulatorFCV1::on_center_line()
 // {
 //     for (size_t i = 0; i < kStoneMax; ++i)
 //     {
@@ -199,7 +199,7 @@ bool Simulator::IsInPlayarea()
 // }
 
 // ノーティックルール対応用関数
-// void Simulator::NoTickRule()
+// void SimulatorFCV1::no_tick_rule()
 // {
 //     for (int i : on_center_line)
 //     {
@@ -216,7 +216,7 @@ bool Simulator::IsInPlayarea()
 //     }
 // }
 
-void Simulator::Step(float seconds_per_frame)
+void SimulatorFCV1::step(float seconds_per_frame)
 {
     // simulate
     while (!is_awake.empty())
@@ -224,7 +224,7 @@ void Simulator::Step(float seconds_per_frame)
         for (auto &index : is_awake)
         {
             b2Vec2 const stone_velocity = stone_bodies[index]->GetLinearVelocity(); // copy
-            auto const [normalized_stone_velocity, stone_speed] = Normalize(stone_velocity);
+            auto const [normalized_stone_velocity, stone_speed] = normalize(stone_velocity);
             float const angular_velocity = stone_bodies[index]->GetAngularVelocity();
 
             // 速度を計算
@@ -232,7 +232,7 @@ void Simulator::Step(float seconds_per_frame)
             if (stone_speed > EPSILON)
             {
                 // ストーンの速度を計算
-                float const new_stone_speed = stone_speed + LongitudinalAcceleration(stone_speed) * seconds_per_frame;
+                float const new_stone_speed = stone_speed + longitudinal_acceleration(stone_speed) * seconds_per_frame;
                 if (new_stone_speed <= 0.f)
                 {
                     stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
@@ -240,7 +240,7 @@ void Simulator::Step(float seconds_per_frame)
                 }
                 else
                 {
-                    float const yaw = YawRate(stone_speed, angular_velocity) * seconds_per_frame;
+                    float const yaw = yaw_tate(stone_speed, angular_velocity) * seconds_per_frame;
                     float const longitudinal_velocity = new_stone_speed * std::cos(yaw);
                     float const transverse_velocity = new_stone_speed * std::sin(yaw);
                     b2Vec2 const &e_longitudinal = normalized_stone_velocity;
@@ -253,7 +253,7 @@ void Simulator::Step(float seconds_per_frame)
             // 角速度を計算
             if (std::abs(angular_velocity) > EPSILON)
             {
-                float const angular_accel = AngularAcceleration(stone_speed) * seconds_per_frame;
+                float const angular_accel = angular_acceleration(stone_speed) * seconds_per_frame;
                 float new_angular_velocity = 0.f;
                 if (std::abs(angular_velocity) <= std::abs(angular_accel))
                 {
@@ -276,7 +276,7 @@ void Simulator::Step(float seconds_per_frame)
     }
 }
 
-void Simulator::SetStones()
+void SimulatorFCV1::set_stones()
 {
     // update bodies
     int ally_position_size = shot / 2 + 1;
@@ -314,12 +314,12 @@ void Simulator::SetStones()
 
         if (shot < 5)
         {
-            IsFreeGuardZone();
+            is_freeguardzone();
         }
     }
 }
 
-void Simulator::SetVelocity(float velocity_x, float velocity_y, float angular_velocity)
+void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity)
 {
 
     int index = shot / 2;
@@ -332,7 +332,7 @@ void Simulator::SetVelocity(float velocity_x, float velocity_y, float angular_ve
     moved.push_back(index);
 }
 
-std::vector<digitalcurling3::StoneData> Simulator::GetStones()
+std::vector<digitalcurling3::StoneData> SimulatorFCV1::get_stones()
 {
     std::vector<digitalcurling3::StoneData> stones_data;
     for (b2Body *body : stone_bodies)
@@ -351,7 +351,7 @@ std::vector<digitalcurling3::StoneData> Simulator::GetStones()
 }
 
 
-MSSimulator::MSSimulator() : storage(), shot() {
+StoneSimulator::StoneSimulator() : storage(), shot() {
     x_velocities.reserve(100);
     y_velocities.reserve(100);
     angular_velocities.reserve(100);
@@ -359,7 +359,7 @@ MSSimulator::MSSimulator() : storage(), shot() {
     storage.reserve(16);
     simulated_stones.reserve(100);
 
-    num_threads = readConfigFile("config.json")["thread_num"];
+    num_threads = read_configfile("config.json")["thread_num"];
     omp_set_num_threads(num_threads);
     simulators.resize(num_threads);
     local_free_guard_zone_flags.resize(num_threads, std::vector<digitalcurling3::FiveLockWithID>());
@@ -378,7 +378,7 @@ MSSimulator::MSSimulator() : storage(), shot() {
     /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
     /// \param[in] angular_velocities 1 -> cw, -1 -> ccw
     /// \returns The positions of the stones after the simulations
-std::pair<py::array_t<double>, py::array_t<unsigned int>> MSSimulator::main(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities)
+std::pair<py::array_t<double>, py::array_t<unsigned int>> StoneSimulator::simulator(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities)
 {
     this->shot = shot;
     x_velocities_length = len(x_velocities);
@@ -395,20 +395,20 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> MSSimulator::main(py::
     }
 
     for (int i = 0; i < num_threads; i++) {
-        simulators[i] = new Simulator(storage);
-        simulators[i]->ChangeShot(this->shot);
+        simulators[i] = new SimulatorFCV1(storage);
+        simulators[i]->change_shot(this->shot);
     }
 
     #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
     for (int i = 0; i < x_velocities_length; ++i) {
         int thread_id = omp_get_thread_num();
-        simulators[thread_id]->SetStones();
-        simulators[thread_id]->SetVelocity(this->x_velocities[i], this->y_velocities[i], this->angular_velocities[i]);
-        simulators[thread_id]->Step(0.002);
-        five_lock_with_id.flag = simulators[thread_id]->IsInPlayarea();
+        simulators[thread_id]->set_stones();
+        simulators[thread_id]->set_velocity(this->x_velocities[i], this->y_velocities[i], this->angular_velocities[i]);
+        simulators[thread_id]->step(0.002);
+        five_lock_with_id.flag = simulators[thread_id]->is_in_playarea();
         five_lock_with_id.id = i;
         local_free_guard_zone_flags[thread_id].push_back(five_lock_with_id);
-        simulated_stones_with_id.stones = simulators[thread_id]->GetStones();
+        simulated_stones_with_id.stones = simulators[thread_id]->get_stones();
         simulated_stones_with_id.id = i;
         local_simulated_stones[thread_id].push_back(simulated_stones_with_id);
     }
@@ -442,7 +442,7 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> MSSimulator::main(py::
         vector_five_lock_result.push_back(flag.flag);
     }
 
-    result = ConvertStoneData(state_values, x_velocities_length);
+    result = convert_stonedata(state_values, x_velocities_length);
     five_lock_result = py::array_t<unsigned int>(py::array::ShapeContainer({x_velocities_length}), vector_five_lock_result.data());
 
     return {result, five_lock_result};
@@ -454,7 +454,7 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> MSSimulator::main(py::
 
 PYBIND11_MODULE(simulator, m)
 {
-    py::class_<MSSimulator>(m, "Simulator")
+    py::class_<StoneSimulator>(m, "StoneSimulator")
         .def(py::init<>())
-        .def("main", &MSSimulator::main);
+        .def("simulator", &StoneSimulator::simulator);
 }
