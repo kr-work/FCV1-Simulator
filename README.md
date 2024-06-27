@@ -1,5 +1,6 @@
 # FCV1-Simulation
 DC3のストーンシミュレーションをマルチスレッドにより、高速で行うためのリポジトリです.
+(下の表は同じseconds_per_frameで行っております)
 ![simulation_speed](figure/Comparison_of%20speed.png)
 
 ## Setup submodule
