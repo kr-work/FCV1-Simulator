@@ -167,8 +167,9 @@ void SimulatorFCV1::change_shot(int shot)
     this->shot = shot;
 }
 
-bool SimulatorFCV1::is_in_playarea()
+digitalcurling3::FiveLockWithID SimulatorFCV1::is_in_playarea()
 {
+    five_lock_with_id.id = shot_id;
     for (int i : in_free_guard_zone)
     {
         auto body = stone_bodies[i];
@@ -179,10 +180,12 @@ bool SimulatorFCV1::is_in_playarea()
                 auto stone = stones[index];
                 stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
             }
-            return true;
+            five_lock_with_id.flag = true;
+            return five_lock_with_id;
         }
     }
-    return false;
+    five_lock_with_id.flag = false;
+    return five_lock_with_id;
 }
 
 // ノーティックルール対応用関数
@@ -319,9 +322,9 @@ void SimulatorFCV1::set_stones()
     }
 }
 
-void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity)
+void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, int id)
 {
-
+    shot_id = id;
     int index = shot / 2;
     stone_bodies[index]->SetLinearVelocity(b2Vec2(velocity_x, velocity_y));
     stone_bodies[index]->SetAngularVelocity(angular_velocity);
@@ -332,9 +335,9 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     moved.push_back(index);
 }
 
-std::vector<digitalcurling3::StoneData> SimulatorFCV1::get_stones()
+digitalcurling3::StoneDataWithID SimulatorFCV1::get_stones()
 {
-    std::vector<digitalcurling3::StoneData> stones_data;
+    digitalcurling3::StoneDataWithID stones_data;
     for (b2Body *body : stone_bodies)
     {
         b2Vec2 position = body->GetPosition();
@@ -342,11 +345,9 @@ std::vector<digitalcurling3::StoneData> SimulatorFCV1::get_stones()
         {
             body->SetTransform(b2Vec2(0.f, 0.f), 0.f);
         }
-        else
-        {
-            stones_data.push_back({digitalcurling3::Vector2(position.x, position.y)});
-        }
+        stones_data.stones.push_back({digitalcurling3::Vector2(position.x, position.y)});
     }
+    stones_data.id = shot_id;
     return stones_data;
 }
 
@@ -403,14 +404,10 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> StoneSimulator::simula
     for (int i = 0; i < x_velocities_length; ++i) {
         int thread_id = omp_get_thread_num();
         simulators[thread_id]->set_stones();
-        simulators[thread_id]->set_velocity(this->x_velocities[i], this->y_velocities[i], this->angular_velocities[i]);
+        simulators[thread_id]->set_velocity(this->x_velocities[i], this->y_velocities[i], this->angular_velocities[i], i);
         simulators[thread_id]->step(0.002);
-        five_lock_with_id.flag = simulators[thread_id]->is_in_playarea();
-        five_lock_with_id.id = i;
-        local_free_guard_zone_flags[thread_id].push_back(five_lock_with_id);
-        simulated_stones_with_id.stones = simulators[thread_id]->get_stones();
-        simulated_stones_with_id.id = i;
-        local_simulated_stones[thread_id].push_back(simulated_stones_with_id);
+        local_free_guard_zone_flags[thread_id].push_back(simulators[thread_id]->is_in_playarea());
+        local_simulated_stones[thread_id].push_back(simulators[thread_id]->get_stones());
     }
     simulated_stones.clear();
     free_guard_zone_flags.clear();

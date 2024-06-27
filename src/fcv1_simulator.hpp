@@ -284,13 +284,13 @@ public:
     };
     void is_freeguardzone();
     void change_shot(int shot);
-    bool is_in_playarea();
+    digitalcurling3::FiveLockWithID is_in_playarea();
     // void on_center_line();
     // void no_tick_rule();
     void step(float seconds_per_frame);
     void set_stones();
-    void set_velocity(float velocity_x, float velocity_y, float angular_velocity);
-    std::vector<digitalcurling3::StoneData> get_stones();
+    void set_velocity(float velocity_x, float velocity_y, float angular_velocity, int id);
+    digitalcurling3::StoneDataWithID get_stones();
 
 private:
     ContactListener contact_listener_;
@@ -301,6 +301,8 @@ private:
     std::vector<int> moved;
     std::vector<int> on_center_line;
     std::vector<int> in_free_guard_zone;
+    digitalcurling3::FiveLockWithID five_lock_with_id;
+    int shot_id;
     bool free_guard_zone;
     b2World world;
     b2BodyDef stone_body_def;
