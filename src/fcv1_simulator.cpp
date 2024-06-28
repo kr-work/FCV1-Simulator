@@ -155,7 +155,7 @@ void SimulatorFCV1::is_freeguardzone()
         float dx = body->GetPosition().x;
         float dy = body->GetPosition().y - tee_line;
         float distance_squared = dx * dx + dy * dy;
-        if (dy < 0 && distance_squared > house_radius * house_radius && dy != -tee_line)
+        if (dy < 0 && distance_squared > house_radius * house_radius && body->GetPosition().y >= min_y)
         {
             in_free_guard_zone.push_back(i);
         }
@@ -170,6 +170,7 @@ void SimulatorFCV1::change_shot(int shot)
 digitalcurling3::FiveLockWithID SimulatorFCV1::is_in_playarea()
 {
     five_lock_with_id.id = shot_id;
+
     for (int i : in_free_guard_zone)
     {
         auto body = stone_bodies[i];
@@ -330,7 +331,7 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     stone_bodies[index]->SetAngularVelocity(angular_velocity);
     stone_bodies[index]->SetEnabled(true);
     stone_bodies[index]->SetAwake(true);
-    stone_bodies[index]->SetTransform(b2Vec2(stones[index].position.x, stones[index].position.y), 0.f);
+    stone_bodies[index]->SetTransform(b2Vec2(0.0, 0.0), 0.f);
     is_awake.push_back(index);
     moved.push_back(index);
 }
@@ -345,7 +346,8 @@ digitalcurling3::StoneDataWithID SimulatorFCV1::get_stones()
         {
             body->SetTransform(b2Vec2(0.f, 0.f), 0.f);
         }
-        stones_data.stones.push_back({digitalcurling3::Vector2(position.x, position.y)});
+        b2Vec2 after_position = body->GetPosition();
+        stones_data.stones.push_back({digitalcurling3::Vector2(after_position.x, after_position.y)});
     }
     stones_data.id = shot_id;
     return stones_data;
