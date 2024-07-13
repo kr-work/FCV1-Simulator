@@ -21,4 +21,4 @@ result, flag = stone_simulator.simulator(np_position, shot, np_x_velocities, np_
 
 # print(result)
 print(flag)
-
+print(result)

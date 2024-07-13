@@ -413,6 +413,8 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> StoneSimulator::simula
     }
     simulated_stones.clear();
     free_guard_zone_flags.clear();
+    state_values.clear();
+    vector_five_lock_result.clear();
     for (int i = 0; i < num_threads; i++) {
         for (digitalcurling3::StoneDataWithID stone : local_simulated_stones[i]) {
             simulated_stones.push_back(stone);
