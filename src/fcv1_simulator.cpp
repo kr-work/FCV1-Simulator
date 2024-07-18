@@ -385,6 +385,7 @@ std::pair<py::array_t<double>, py::array_t<unsigned int>> StoneSimulator::simula
 {
     this->shot = shot;
     x_velocities_length = len(x_velocities);
+    storage.clear();
     for (size_t i = 0; i < x_velocities_length; ++i)
     {
         this->x_velocities.push_back(x_velocities.at(i));
