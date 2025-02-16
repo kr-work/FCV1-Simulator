@@ -16,7 +16,7 @@
 
 // constexpr float stone_radius = 0.145f;
 
-json read_configfile(const std::string& filepath)
+json read_configfile(const std::string &filepath)
 {
     std::ifstream ifs(filepath);
     json j;
@@ -67,33 +67,26 @@ inline float angular_acceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double> convert_stonedata(const std::vector<digitalcurling3::StoneData>& simulated_stones, int simulations) {
-    
-    
-    const size_t num_coordinates = 2; // xとyの座標数
+py::array_t<double> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones)
+{
+    const size_t num_coordinates = 2; // x and y coordinates per stone
+    std::vector<double> temp_result(stones_per_simulation * num_coordinates);
 
-    // 1次元配列を作成（各ストーンのx, y座標を順に格納）
-    std::vector<double> temp_result(simulations * stones_per_simulation * num_coordinates);
-
-    // 1次元配列にデータをコピー
-    for (int sim = 0; sim < simulations; ++sim) {
-        for (size_t i = 0; i < stones_per_simulation; ++i) {
-            size_t index = sim * stones_per_simulation * num_coordinates + i * num_coordinates;
-            temp_result[index] = simulated_stones[sim * stones_per_simulation + i].position.x;
-            temp_result[index + 1] = simulated_stones[sim * stones_per_simulation + i].position.y;
-        }
+    for (size_t i = 0; i < stones_per_simulation; ++i)
+    {
+        size_t index = i * num_coordinates;
+        temp_result[index] = simulated_stones.stones[i].position.x;
+        temp_result[index + 1] = simulated_stones.stones[i].position.y;
     }
 
-    // 2次元配列に変換
-    py::array_t<double> result(py::array::ShapeContainer({simulations, stones_per_simulation * num_coordinates}), temp_result.data());
-
+    py::array_t<double> result(py::array::ShapeContainer({stones_per_simulation * num_coordinates}), temp_result.data());
     return result;
 }
 
 void SimulatorFCV1::ContactListener::PostSolve(b2Contact *contact, const b2ContactImpulse *impulse)
 {
-    auto a_body = contact->GetFixtureA()->GetBody();
-    auto b_body = contact->GetFixtureB()->GetBody();
+    b2Body *a_body = contact->GetFixtureA()->GetBody();
+    b2Body *b_body = contact->GetFixtureB()->GetBody();
 
     digitalcurling3::Collision collision;
     collision.a.id = static_cast<int>(a_body->GetUserData().pointer);
@@ -112,14 +105,13 @@ void SimulatorFCV1::ContactListener::PostSolve(b2Contact *contact, const b2Conta
     collision.tangent_impulse = impulse->tangentImpulses[0];
 }
 
-void SimulatorFCV1::ContactListener::add_unique_id(std::vector<int>& list, int id)
+void SimulatorFCV1::ContactListener::add_unique_id(std::vector<int> &list, int id)
 {
     if (std::find(list.begin(), list.end(), id) == list.end())
     {
         list.push_back(id);
     }
 }
-
 
 SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones) : stones(stones), world(b2Vec2(0, 0)), contact_listener_(this)
 {
@@ -151,7 +143,7 @@ void SimulatorFCV1::is_freeguardzone()
 {
     for (size_t i = 0; i < kStoneMax; ++i)
     {
-        auto body = stone_bodies[i];
+        b2Body *body = stone_bodies[i];
         float dx = body->GetPosition().x;
         float dy = body->GetPosition().y - tee_line;
         float distance_squared = dx * dx + dy * dy;
@@ -167,26 +159,22 @@ void SimulatorFCV1::change_shot(int shot)
     this->shot = shot;
 }
 
-digitalcurling3::FiveLockWithID SimulatorFCV1::is_in_playarea()
+unsigned int SimulatorFCV1::is_in_playarea()
 {
-    five_lock_with_id.id = shot_id;
-
     for (int i : in_free_guard_zone)
     {
-        auto body = stone_bodies[i];
+        b2Body *body = stone_bodies[i];
         if (body->GetPosition().y > y_upper_limit || body->GetPosition().x > stone_x_upper_limit || body->GetPosition().x < stone_x_lower_limit)
         {
             for (int index : moved)
             {
-                auto stone = stones[index];
+                digitalcurling3::StoneData stone = stones[index];
                 stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
             }
-            five_lock_with_id.flag = true;
-            return five_lock_with_id;
+            return true;
         }
     }
-    five_lock_with_id.flag = false;
-    return five_lock_with_id;
+    return false;
 }
 
 // ノーティックルール対応用関数
@@ -220,12 +208,14 @@ digitalcurling3::FiveLockWithID SimulatorFCV1::is_in_playarea()
 //     }
 // }
 
-void SimulatorFCV1::step(float seconds_per_frame)
+std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_frame)
 {
+    trajectory_list.clear();
     // simulate
     while (!is_awake.empty())
     {
-        for (auto &index : is_awake)
+        trajectory.clear();
+        for (int &index : is_awake)
         {
             b2Vec2 const stone_velocity = stone_bodies[index]->GetLinearVelocity(); // copy
             auto const [normalized_stone_velocity, stone_speed] = normalize(stone_velocity);
@@ -235,6 +225,8 @@ void SimulatorFCV1::step(float seconds_per_frame)
             // ストーンが停止してる場合は無視
             if (stone_speed > EPSILON)
             {
+                StonePosition pos = {index, stone_bodies[index]->GetPosition().x, stone_bodies[index]->GetPosition().y};
+                trajectory.push_back(pos);
                 // ストーンの速度を計算
                 float const new_stone_speed = stone_speed + longitudinal_acceleration(stone_speed) * seconds_per_frame;
                 if (new_stone_speed <= 0.f)
@@ -270,6 +262,7 @@ void SimulatorFCV1::step(float seconds_per_frame)
                 stone_bodies[index]->SetAngularVelocity(new_angular_velocity);
             }
         }
+        trajectory_list.push_back(trajectory);
 
         // storage.collisions.clear();
 
@@ -278,6 +271,7 @@ void SimulatorFCV1::step(float seconds_per_frame)
             8,  // velocityIterations (公式マニュアルでの推奨値は 8)
             3); // positionIterations (公式マニュアルでの推奨値は 3)
     }
+    return trajectory_list;
 }
 
 void SimulatorFCV1::set_stones()
@@ -287,7 +281,7 @@ void SimulatorFCV1::set_stones()
     int opponent_position_size = shot / 2 + 9;
     for (size_t i = 0; i < ally_position_size; ++i)
     {
-        auto &stone = stones[i];
+        const digitalcurling3::StoneData &stone = stones[i];
         digitalcurling3::Vector2 position = stone.position;
         if (position.x == 0.f && position.y == 0.f)
         {
@@ -303,8 +297,8 @@ void SimulatorFCV1::set_stones()
 
     for (size_t i = 8; i < opponent_position_size; ++i)
     {
-        auto &stone = stones[i];
-        auto position = stone.position;
+        const digitalcurling3::StoneData &stone = stones[i];
+        digitalcurling3::Vector2 position = stone.position;
         if (position.x == 0.f && position.y == 0.f)
         {
             stone_bodies[i]->SetEnabled(false);
@@ -316,17 +310,17 @@ void SimulatorFCV1::set_stones()
             stone_bodies[i]->SetTransform(b2Vec2(position.x, position.y), 0.f);
         }
 
-        if (shot < 5)
+        if (this->shot < 5)
         {
             is_freeguardzone();
         }
     }
 }
 
-void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, int id)
+void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id)
 {
-    shot_id = id;
-    int index = shot / 2;
+    this->shot_per_team = shot_per_team;
+    int index = this->shot_per_team + team_id * 8;
     stone_bodies[index]->SetLinearVelocity(b2Vec2(velocity_x, velocity_y));
     stone_bodies[index]->SetAngularVelocity(angular_velocity);
     stone_bodies[index]->SetEnabled(true);
@@ -336,121 +330,82 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     moved.push_back(index);
 }
 
-digitalcurling3::StoneDataWithID SimulatorFCV1::get_stones()
+digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
 {
-    digitalcurling3::StoneDataWithID stones_data;
+    digitalcurling3::StoneDataVector stones_data;
     for (b2Body *body : stone_bodies)
     {
         b2Vec2 position = body->GetPosition();
-        if (position.x > stone_x_upper_limit || position.x < stone_x_lower_limit || position.y > y_upper_limit)
+        if (position.x > stone_x_upper_limit || position.x < stone_x_lower_limit || position.y > y_upper_limit || position.y < y_lower_limit)
         {
             body->SetTransform(b2Vec2(0.f, 0.f), 0.f);
         }
         b2Vec2 after_position = body->GetPosition();
         stones_data.stones.push_back({digitalcurling3::Vector2(after_position.x, after_position.y)});
     }
-    stones_data.id = shot_id;
     return stones_data;
 }
 
-
-StoneSimulator::StoneSimulator() : storage(), shot() {
-    x_velocities.reserve(100);
-    y_velocities.reserve(100);
-    angular_velocities.reserve(100);
-    free_guard_zone_flags.reserve(100);
+StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
+{
     storage.reserve(16);
-    simulated_stones.reserve(100);
-
-    num_threads = read_configfile("config.json")["thread_num"];
-    omp_set_num_threads(num_threads);
-    simulators.resize(num_threads);
-    local_free_guard_zone_flags.resize(num_threads, std::vector<digitalcurling3::FiveLockWithID>());
-    local_simulated_stones.resize(num_threads, std::vector<digitalcurling3::StoneDataWithID>());
-    #pragma omp parallel num_threads(num_threads)
-    {
-        // Empty block. No operations are performed in the threads.
-    }
 }
 
-
-    /// \brief Function to call from python
-    /// \param[in] stone_positions 16 stones' positions(The first 8 stones are the first attacker's stones, the last 8 stones are the second attacker's stones)
-    /// \param[in] shot The number of shots
-    /// \param[in] x_velocities The x component of the velocity of the stone to be thrown
-    /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
-    /// \param[in] angular_velocities 1 -> cw, -1 -> ccw
-    /// \returns The positions of the stones after the simulations
-std::pair<py::array_t<double>, py::array_t<unsigned int>> StoneSimulator::simulator(py::array_t<double> stone_positions, int shot, py::array_t<double> x_velocities, py::array_t<double> y_velocities, py::array_t<int> angular_velocities)
+/// \brief Function to call from python
+/// \param[in] stone_positions 16 stones' positions(The first 8 stones are the first attacker's stones, the last 8 stones are the second attacker's stones)
+/// \param[in] shot The number of shots
+/// \param[in] x_velocities The x component of the velocity of the stone to be thrown
+/// \param[in] y_velocities The y component of the velocity of the stone to be thrown
+/// \param[in] angular_velocities 1 -> cw, -1 -> ccw
+/// \param[in] team_id The team that throws the stone. Team0 or Team1
+/// \param[in] shot_per_team The number of shots per team
+/// \returns The positions of the stones after the simulations
+std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int team_id, unsigned int shot_per_team)
 {
-    this->shot = shot;
-    x_velocities_length = len(x_velocities);
+    this->shot = total_shot;
+    this->shot_per_team = shot_per_team;
+    this->team_id = team_id;
     storage.clear();
-    for (size_t i = 0; i < x_velocities_length; ++i)
-    {
-        this->x_velocities.push_back(x_velocities.at(i));
-        this->y_velocities.push_back(y_velocities.at(i));
-        this->angular_velocities.push_back(angular_velocities.at(i) * cw);
-    }
-    simulated_stones.resize(x_velocities_length);
+    this->x_velocity = x_velocity;
+    this->y_velocity = y_velocity;
+    this->angular_velocity = angular_velocity;
+
     for (int i = 0; i < 16; i++)
     {
-        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2*i), stone_positions.at(2*i+1))));
+        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2 * i), stone_positions.at(2 * i + 1))));
     }
 
-    for (int i = 0; i < num_threads; i++) {
-        simulators[i] = new SimulatorFCV1(storage);
-        simulators[i]->change_shot(this->shot);
-    }
+    simulatorFCV1 = new SimulatorFCV1(storage);
+    simulatorFCV1->change_shot(this->shot);
+    simulatorFCV1->set_stones();
+    simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id);
 
-    #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 1)
-    for (int i = 0; i < x_velocities_length; ++i) {
-        int thread_id = omp_get_thread_num();
-        simulators[thread_id]->set_stones();
-        simulators[thread_id]->set_velocity(this->x_velocities[i], this->y_velocities[i], this->angular_velocities[i], i);
-        simulators[thread_id]->step(0.002);
-        local_free_guard_zone_flags[thread_id].push_back(simulators[thread_id]->is_in_playarea());
-        local_simulated_stones[thread_id].push_back(simulators[thread_id]->get_stones());
-    }
-    simulated_stones.clear();
-    free_guard_zone_flags.clear();
-    state_values.clear();
-    vector_five_lock_result.clear();
-    for (int i = 0; i < num_threads; i++) {
-        for (digitalcurling3::StoneDataWithID stone : local_simulated_stones[i]) {
-            simulated_stones.push_back(stone);
+    trajectory = simulatorFCV1->step(0.001);
+    free_guard_zone_flag = simulatorFCV1->is_in_playarea();
+    simulated_stones = simulatorFCV1->get_stones();
+
+    result = convert_stonedata(simulated_stones);
+
+    count = 0;
+    for (const std::vector<StonePosition> &step_stone_data : trajectory)
+    {
+        py::list step_list;
+        for (const StonePosition &stone : step_stone_data)
+        {
+            if (count % 100 == 0)
+            {
+                step_list.append(py::make_tuple(stone.id, stone.x, stone.y));
+            }
         }
-    }
-    for (int i = 0; i < num_threads; i++) {
-        for (digitalcurling3::FiveLockWithID flag : local_free_guard_zone_flags[i]) {
-            free_guard_zone_flags.push_back(flag);
+        if (!step_list.empty())
+        {
+            trajectory_list.append(step_list);
         }
+        count++;
     }
 
-    std::sort(simulated_stones.begin(), simulated_stones.end(), [](const digitalcurling3::StoneDataWithID& a, const digitalcurling3::StoneDataWithID& b) {
-        return a.id < b.id;
-    });
-    std::sort(free_guard_zone_flags.begin(), free_guard_zone_flags.end(), [](const digitalcurling3::FiveLockWithID& a, const digitalcurling3::FiveLockWithID& b) {
-        return a.id < b.id;
-    });
-
-    for (const digitalcurling3::StoneDataWithID& stone: simulated_stones) {
-        for (const digitalcurling3::StoneData& stone_data: stone.stones) {
-            state_values.push_back(stone_data.position);
-        }
-    }
-
-    for (const digitalcurling3::FiveLockWithID& flag: free_guard_zone_flags) {
-        vector_five_lock_result.push_back(flag.flag);
-    }
-
-    result = convert_stonedata(state_values, x_velocities_length);
-    five_lock_result = py::array_t<unsigned int>(py::array::ShapeContainer({x_velocities_length}), vector_five_lock_result.data());
-
-    return {result, five_lock_result};
-
+    return std::make_tuple(result, free_guard_zone_flag, trajectory_list);
 }
-
 
 // main関数
 
