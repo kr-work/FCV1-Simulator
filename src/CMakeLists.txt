@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 project(simulator)
-list(APPEND CMAKE_PREFIX_PATH "/workspaces/FCV1-Simulation/extern/box2d/build/lib/cmake/box2d")
+list(APPEND CMAKE_PREFIX_PATH "/workspaces/FCV1-Simulator/extern/box2d/build/lib/cmake/box2d")
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(pybind11 REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Box2D REQUIRED)
 
-link_directories("/workspaces/FCV1-Simulation/extern/box2d/build/bin")
+link_directories("/workspaces/FCV1-Simulator/extern/box2d/build/bin")
 
 add_library(simulator MODULE fcv1_simulator.cpp)
 target_include_directories(simulator PRIVATE "${CMAKE_SOURCE_DIR}/../extern/Box2D/include")
