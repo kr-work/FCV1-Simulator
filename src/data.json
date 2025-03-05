@@ -37,6 +37,6 @@
   "shot_per_team": 1,
   "team_id": 0,
   "x_velocities": -0.001,
-  "y_velocities": 0.2,
-  "angular_velocities": -1.0
+  "y_velocities": 2.3,
+  "angular_velocities": 1.0
 }

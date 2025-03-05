@@ -139,26 +139,36 @@ SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &ston
     world.SetContactListener(&contact_listener_);
 }
 
-void SimulatorFCV1::is_freeguardzone()
+void SimulatorFCV1::change_shot(int shot)
+{
+    this->shot = shot;
+}
+
+bool SimulatorFCV1::is_freeguardzone(b2Body *body)
+{
+    float dx = body->GetPosition().x;
+    float dy = body->GetPosition().y - tee_line;
+    float distance_squared = dx * dx + dy * dy;
+    if (dy < 0 && distance_squared > house_radius * house_radius && body->GetPosition().y >= min_y)
+    {
+        return true;
+    }
+    return false;
+}
+
+void SimulatorFCV1::freeguardzone_checker()
 {
     for (size_t i = 0; i < kStoneMax; ++i)
     {
         b2Body *body = stone_bodies[i];
-        float dx = body->GetPosition().x;
-        float dy = body->GetPosition().y - tee_line;
-        float distance_squared = dx * dx + dy * dy;
-        if (dy < 0 && distance_squared > house_radius * house_radius && body->GetPosition().y >= min_y)
+        if (is_freeguardzone(body))
         {
             in_free_guard_zone.push_back(i);
         }
     }
 }
 
-void SimulatorFCV1::change_shot(int shot)
-{
-    this->shot = shot;
-}
-
+// ファイブロックルール対応用関数
 unsigned int SimulatorFCV1::is_in_playarea()
 {
     for (int i : in_free_guard_zone)
@@ -178,35 +188,45 @@ unsigned int SimulatorFCV1::is_in_playarea()
 }
 
 // ノーティックルール対応用関数
-// void SimulatorFCV1::on_center_line()
-// {
-//     for (size_t i = 0; i < kStoneMax; ++i)
-//     {
-//         auto stone_body = stone_bodies[i];
-//         if (stone_body.IsEnabled() && stone_radius - std::abs(stone_body->GetPosition().x) < 0.0)
-//         {
-//             on_center_line.push_back(i);
-//         }
-//     }
-// }
+bool SimulatorFCV1::on_center_line(b2Body *body)
+{
+    if (body->IsEnabled() && kStoneRadius - std::abs(body->GetPosition().x) < 0.0)
+    {
+        return true;
+    }
+    return false;
+}
+
+void SimulatorFCV1::no_tick_checker()
+{
+    for (size_t i = 0; i < kStoneMax; ++i)
+    {
+        b2Body *body = stone_bodies[i];
+        float position_y = body -> GetPosition().y;
+        if (on_center_line(body) && position_y > y_lower_limit && position_y < (tee_line - house_radius))
+        {
+            is_no_tick.push_back(i);
+        }
+    }
+}
 
 // ノーティックルール対応用関数
-// void SimulatorFCV1::no_tick_rule()
-// {
-//     for (int i : on_center_line)
-//     {
-//         auto stone_body = stone_bodies[i];
-//         if (stone_radius - std::abs(stone_body->GetPosition().x) > 0.0)
-//         {
-//             for (int index : moved)
-//             {
-//                 auto stone = stones[index];
-//                 stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
-//             }
-//             break;
-//         }
-//     }
-// }
+void SimulatorFCV1::no_tick_rule()
+{
+    for (int i : is_no_tick)
+    {
+        b2Body *body = stone_bodies[i];
+        if (kStoneRadius - std::abs(body->GetPosition().x) > 0.0)
+        {
+            for (int index : moved)
+            {
+                auto stone = stones[index];
+                stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
+            }
+            break;
+        }
+    }
+}
 
 std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_frame)
 {
@@ -312,7 +332,7 @@ void SimulatorFCV1::set_stones()
 
         if (this->shot < 5)
         {
-            is_freeguardzone();
+            freeguardzone_checker();
         }
     }
 }
@@ -356,11 +376,11 @@ StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
 /// \param[in] shot The number of shots
 /// \param[in] x_velocities The x component of the velocity of the stone to be thrown
 /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
-/// \param[in] angular_velocities 1 -> cw, -1 -> ccw
+/// \param[in] angular_sign 1 -> cw, -1 -> ccw
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int team_id, unsigned int shot_per_team)
+std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team)
 {
     this->shot = total_shot;
     this->shot_per_team = shot_per_team;
@@ -368,7 +388,7 @@ std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulato
     storage.clear();
     this->x_velocity = x_velocity;
     this->y_velocity = y_velocity;
-    this->angular_velocity = angular_velocity;
+    this->angular_velocity = angular_sign * cw;
 
     for (int i = 0; i < 16; i++)
     {

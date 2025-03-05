@@ -297,11 +297,13 @@ public:
     private:
         SimulatorFCV1 *const instance_;
     };
-    void is_freeguardzone();
+    bool is_freeguardzone(b2Body *body);
+    void freeguardzone_checker();
     void change_shot(int shot);
     unsigned int is_in_playarea();
-    // void on_center_line();
-    // void no_tick_rule();
+    bool on_center_line(b2Body *body);
+    void no_tick_checker();
+    void no_tick_rule();
     std::vector<std::vector<StonePosition>> step(float seconds_per_frame);
     void set_stones();
     void set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id);
@@ -314,7 +316,7 @@ private:
     float angular_velocity;
     std::vector<int> is_awake;
     std::vector<int> moved;
-    std::vector<int> on_center_line;
+    std::vector<int> is_no_tick;
     std::vector<int> in_free_guard_zone;
     std::vector<StonePosition> trajectory;
     std::vector<std::vector<StonePosition>> trajectory_list;
@@ -331,7 +333,7 @@ class StoneSimulator
 {
 public:
     StoneSimulator();
-    std::tuple<py::array_t<double>, unsigned int, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int first_team_hummer, unsigned int shot_per_team);
+    std::tuple<py::array_t<double>, unsigned int, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;
