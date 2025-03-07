@@ -264,6 +264,11 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                     b2Vec2 const new_stone_velocity = longitudinal_velocity * e_longitudinal + transverse_velocity * e_transverse;
                     stone_bodies[index]->SetLinearVelocity(new_stone_velocity);
                 }
+            }else{
+                is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
+                //if(is_awake.size() != 1){
+                  //  std::cout << "size: " << is_awake.size() << ", normalized_vec_x: " << normalized_stone_velocity.x << ", normalized_vec_y: " << normalized_stone_velocity.y << ", speed: " << stone_speed << std::endl;   
+                //}
             }
 
             // 角速度を計算
