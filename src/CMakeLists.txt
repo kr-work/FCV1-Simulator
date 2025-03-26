@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(simulator)
-list(APPEND CMAKE_PREFIX_PATH "/workspaces/FCV1-Simulator/extern/box2d/build/lib/cmake/box2d")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../extern/box2d/build/lib/cmake/box2d")
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(pybind11 REQUIRED)
