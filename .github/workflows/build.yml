@@ -21,11 +21,6 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
 
-      - name: Set up cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: 3.18
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
