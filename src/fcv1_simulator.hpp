@@ -4,7 +4,6 @@
 #include <nlohmann/json.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-#include <omp.h>
 
 namespace py = pybind11;
 using json = nlohmann::json;
