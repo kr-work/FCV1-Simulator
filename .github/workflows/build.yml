@@ -55,7 +55,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: upload
+          name: ${{runner.os}}-${{matrix.python-version}}
           path: src/build/simulator.*
 
   # release:
