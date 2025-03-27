@@ -28,12 +28,12 @@ jobs:
           pip install -r requirements.txt
           pip install pybind11[global]
 
-      - name: Install
+      - name: Install on Ubnutu
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get install xorg-dev nlohmann-json3-dev
 
-
+      - name: Install on Windows
         if: matrix.os == 'windows-latest'
         run: |
           vcpkg install nlohmann-json
