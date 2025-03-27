@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-latest, macOS-latest]
+        os: [ubuntu-22.04]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     runs-on: ${{matrix.os}}
@@ -27,9 +27,15 @@ jobs:
           pip install -r requirements.txt
           pip install pybind11[global]
 
-      - name: Install xorg-dev
+      - name: Install
         if: matrix.os == 'ubuntu-22.04'
-        run: sudo apt-get install xorg-dev
+        run: |
+          sudo apt-get install xorg-dev nlohmann-json3-dev
+
+
+        # if: matrix.os == 'windows-latest'
+        # run: |
+          
 
       - name: Build
         run: |
@@ -37,7 +43,7 @@ jobs:
           cd extern/box2d
           mkdir build
           cd build
-          cmake -DBOX2D_BUILD_DOCS=ON -DBOX2D_BUILD_UNIT_TESTS=OFF -DCMAKE_INSTALL_PREFIX="./" ..
+          cmake -DBOX2D_BUILD_DOCS=OFF -DBOX2D_BUILD_UNIT_TESTS=OFF -DCMAKE_INSTALL_PREFIX="./" ..
           cmake --build .
           cmake --build . --target install
           cd ../../../src
