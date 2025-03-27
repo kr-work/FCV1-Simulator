@@ -10,7 +10,8 @@ jobs:
       matrix:
         # os: [ubuntu-22.04, windows-latest, macos-latest]
         os: [windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9"]
+        # python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     runs-on: ${{matrix.os}}
     steps:
@@ -50,7 +51,7 @@ jobs:
           cd ../../../src
           mkdir build
           cd build
-          cmake ..
+          cmake .. -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
           cmake --build . --config Release
 
       - name: Upload artifact
