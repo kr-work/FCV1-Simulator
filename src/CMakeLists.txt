@@ -7,7 +7,7 @@ set(box2d_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/box2d/build/lib/cmake/box2d
 find_package(pybind11 REQUIRED)
 find_package(box2d REQUIRED)
 
-link_directories("/workspaces/FCV1-Simulator/extern/box2d/build/bin")
+link_directories("${CMAKE_SOURCE_DIR}/../extern/box2d/build/bin")
 
 add_library(simulator MODULE fcv1_simulator.cpp)
 target_include_directories(simulator PRIVATE "${CMAKE_SOURCE_DIR}/../extern/box2d/include")
