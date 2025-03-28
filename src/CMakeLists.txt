@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
 project(simulator)
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../extern/box2d/build/lib/cmake/box2d")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../extern/json/build")
 set(CMAKE_CXX_STANDARD 17)
 set(box2d_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/box2d/build/lib/cmake/box2d")
+set(nlohmann_json_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/json/build")
 
 find_package(pybind11 REQUIRED)
 find_package(box2d REQUIRED)

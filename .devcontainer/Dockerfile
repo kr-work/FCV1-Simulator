@@ -10,7 +10,7 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh \
     && apt-get update \
-    && apt-get install python3-dev libx11-dev xorg-dev libglu1-mesa-dev doxygen nlohmann-json3-dev -y \
+    && apt-get install python3-dev libx11-dev xorg-dev libglu1-mesa-dev doxygen -y \
     && apt-get install -y build-essential libssl-dev zlib1g-dev libncurses5-dev libffi-dev libsqlite3-dev libreadline-dev libbz2-dev wget curl \
     && wget https://www.python.org/ftp/python/3.12.0/Python-3.12.0.tgz \
     && tar xzf Python-3.12.0.tgz \

@@ -48,10 +48,14 @@ jobs:
           cmake -DBOX2D_BUILD_DOCS=OFF -DBOX2D_BUILD_UNIT_TESTS=OFF -DCMAKE_INSTALL_PREFIX="./" ..
           cmake --build .
           cmake --build . --target install
+          cd ../../json
+          mkdir build
+          cmake --build .
+          cmake --build . --target install
           cd ../../../src
           mkdir build
           cd build
-          cmake .. -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake ..
           cmake --build . --config Release
 
       - name: Upload artifact
