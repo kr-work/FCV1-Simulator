@@ -350,7 +350,7 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     stone_bodies[index]->SetAngularVelocity(angular_velocity);
     stone_bodies[index]->SetEnabled(true);
     stone_bodies[index]->SetAwake(true);
-    stone_bodies[index]->SetTransform(b2Vec2(0.0, 0.0), 0.f);
+    stone_bodies[index]->SetTransform(b2Vec2(0.0f, 0.0f), 0.f);
     is_awake.push_back(index);
     moved.push_back(index);
 }

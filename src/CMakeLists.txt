@@ -10,11 +10,11 @@ find_package(pybind11 REQUIRED)
 find_package(box2d REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 
-link_directories("${CMAKE_SOURCE_DIR}/../extern/box2d/build/bin")
+# link_directories("${CMAKE_SOURCE_DIR}/../extern/box2d/build/bin")
 
 add_library(simulator MODULE fcv1_simulator.cpp)
 target_include_directories(simulator PRIVATE "${CMAKE_SOURCE_DIR}/../extern/box2d/include")
 target_link_libraries(simulator PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(simulator PRIVATE pybind11::module)
-target_link_libraries(simulator PRIVATE box2d)
+target_link_libraries(simulator PRIVATE box2d::box2d)
 set_target_properties(simulator PROPERTIES PREFIX "")
