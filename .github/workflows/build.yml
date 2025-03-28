@@ -40,13 +40,13 @@ jobs:
           cd extern/box2d
           mkdir build
           cd build
-          cmake -DBOX2D_BUILD_DOCS=OFF -DBOX2D_BUILD_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="./" ..
-          cmake --build .
-          cmake --build . --target install
+          cmake -DBOX2D_BUILD_DOCS=OFF -DBOX2D_BUILD_UNIT_TESTS=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="./" ..
+          cmake --build . --config Release
+          cmake --build . --target install --config Release
           cd ../../json
           mkdir build
           cd build
-          cmake -DCMAKE_INSTALL_PREFIX="./" ..
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="./" ..
           cmake --build .
           cmake --build . --target install
           cd ../../../src
