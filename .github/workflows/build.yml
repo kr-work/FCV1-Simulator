@@ -45,6 +45,7 @@ jobs:
           cmake --build . --target install
           cd ../../json
           mkdir build
+          cd build
           cmake --build .
           cmake --build . --target install
           cd ../../../src
