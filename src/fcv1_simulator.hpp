@@ -23,7 +23,8 @@ constexpr float tee_line = 38.405f;
 constexpr float min_y = 30.0f;
 constexpr float house_radius = 1.829f;
 constexpr float EPSILON = std::numeric_limits<float>::epsilon();
-constexpr size_t stones_per_simulation = 16;
+constexpr size_t num_teams = 2;
+constexpr size_t stones_per_team = 8;
 constexpr size_t num_coordinates = 2;
 
 struct Velocity
@@ -299,19 +300,21 @@ public:
     bool is_freeguardzone(b2Body *body);
     void freeguardzone_checker();
     void change_shot(int shot);
-    unsigned int is_in_playarea();
+    void is_in_playarea();
     bool on_center_line(b2Body *body);
     void no_tick_checker();
     void no_tick_rule();
     std::vector<std::vector<StonePosition>> step(float seconds_per_frame);
     void set_stones();
     void set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id);
+    void set_status(int status);
     digitalcurling3::StoneDataVector get_stones();
 
 private:
     ContactListener contact_listener_;
     std::vector<digitalcurling3::StoneData> const &stones;
     int shot_per_team;
+    int total_shot;
     float angular_velocity;
     std::vector<int> is_awake;
     std::vector<int> moved;
@@ -324,6 +327,7 @@ private:
     bool free_guard_zone;
     b2World world;
     b2BodyDef stone_body_def;
+    int status;
     std::array<b2Body *, static_cast<std::size_t>(kStoneMax)> stone_bodies;
 };
 
@@ -332,13 +336,13 @@ class StoneSimulator
 {
 public:
     StoneSimulator();
-    std::tuple<py::array_t<double>, unsigned int, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team);
+    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;
     digitalcurling3::StoneDataVector simulated_stones;
     std::vector<digitalcurling3::StoneData> state_values;
-    py::array_t<double> result;
+    py::array_t<double, 3> stones_positions;
     unsigned int free_guard_zone_flag;
     digitalcurling3::StoneDataVector simulated_stones_with_id;
     std::vector<unsigned int> vector_five_lock_result;

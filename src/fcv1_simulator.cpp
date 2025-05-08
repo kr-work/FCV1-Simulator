@@ -67,20 +67,21 @@ inline float angular_acceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones)
+py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones)
 {
-    const size_t num_coordinates = 2; // x and y coordinates per stone
-    std::vector<double> temp_result(stones_per_simulation * num_coordinates);
+    const int num_coordinates = 2; // x and y coordinates per stone
+    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({num_teams, stones_per_team, num_coordinates}));
+    py::detail::unchecked_mutable_reference<double, 3> buf = stones_positions.mutable_unchecked<3>();
 
-    for (size_t i = 0; i < stones_per_simulation; ++i)
+    for (size_t i = 0; i < 16; ++i)
     {
-        size_t index = i * num_coordinates;
-        temp_result[index] = simulated_stones.stones[i].position.x;
-        temp_result[index + 1] = simulated_stones.stones[i].position.y;
+        int team_id = i / stones_per_team;
+        int stone_id = i % stones_per_team;
+        buf(team_id, stone_id, 0) = simulated_stones.stones[i].position.x;
+        buf(team_id, stone_id, 1) = simulated_stones.stones[i].position.y;
     }
 
-    py::array_t<double> result(py::array::ShapeContainer({stones_per_simulation * num_coordinates}), temp_result.data());
-    return result;
+    return stones_positions;
 }
 
 void SimulatorFCV1::ContactListener::PostSolve(b2Contact *contact, const b2ContactImpulse *impulse)
@@ -169,28 +170,38 @@ void SimulatorFCV1::freeguardzone_checker()
 }
 
 // ファイブロックルール対応用関数
-unsigned int SimulatorFCV1::is_in_playarea()
+void SimulatorFCV1::is_in_playarea()
 {
     for (int i : in_free_guard_zone)
     {
         b2Body *body = stone_bodies[i];
-        if (body->GetPosition().y > y_upper_limit || body->GetPosition().x > stone_x_upper_limit || body->GetPosition().x < stone_x_lower_limit)
+        float position_x = body->GetPosition().x;
+        float position_y = body->GetPosition().y;
+        if (position_y > y_upper_limit || position_x > stone_x_upper_limit || position_x < stone_x_lower_limit || (position_x == 0.0f && position_y == 0.0f))
         {
-            for (int index : moved)
+            for (int i = 0; i < kStoneMax; ++i)
             {
-                digitalcurling3::StoneData stone = stones[index];
-                stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
+                digitalcurling3::StoneData stone = stones[i];
+                stone_bodies[i]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
+                if (stone.position.x == 0.f && stone.position.y == 0.f)
+                {
+                    stone_bodies[i]->SetEnabled(false);
+                    stone_bodies[i]->SetAwake(false);
+                }
+                else
+                {
+                    stone_bodies[i]->SetEnabled(true);
+                    stone_bodies[i]->SetAwake(true);
+                }
             }
-            return true;
         }
     }
-    return false;
 }
 
 // ノーティックルール対応用関数
 bool SimulatorFCV1::on_center_line(b2Body *body)
 {
-    if (body->IsEnabled() && kStoneRadius - std::abs(body->GetPosition().x) < 0.0)
+    if (std::abs(body->GetPosition().x) <= kStoneRadius)
     {
         return true;
     }
@@ -203,7 +214,7 @@ void SimulatorFCV1::no_tick_checker()
     {
         b2Body *body = stone_bodies[i];
         float position_y = body -> GetPosition().y;
-        if (on_center_line(body) && position_y > y_lower_limit && position_y < (tee_line - house_radius))
+        if (position_y > y_lower_limit && position_y < (tee_line - house_radius) && on_center_line(body))
         {
             is_no_tick.push_back(i);
         }
@@ -216,12 +227,14 @@ void SimulatorFCV1::no_tick_rule()
     for (int i : is_no_tick)
     {
         b2Body *body = stone_bodies[i];
-        if (kStoneRadius - std::abs(body->GetPosition().x) > 0.0)
+        float position_x = body->GetPosition().x;
+        float position_y = body->GetPosition().y;
+        if (std::abs(position_x) > kStoneRadius || (position_x == 0.0f && position_y == 0.0f))
         {
-            for (int index : moved)
+            for (size_t j = 0; j < kStoneMax; ++j)
             {
-                auto stone = stones[index];
-                stone_bodies[index]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
+                digitalcurling3::StoneData stone = stones[j];
+                stone_bodies[j]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
             }
             break;
         }
@@ -245,8 +258,19 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
             // ストーンが停止してる場合は無視
             if (stone_speed > EPSILON)
             {
-                StonePosition pos = {index, stone_bodies[index]->GetPosition().x, stone_bodies[index]->GetPosition().y};
+                digitalcurling3::Vector2 stone_position = {stone_bodies[index]->GetPosition().x, stone_bodies[index]->GetPosition().y};
+                StonePosition pos = {index, stone_position.x, stone_position.y};
                 trajectory.push_back(pos);
+
+                // ストーンがシート外の場合は計算から除外
+                if (stone_position.x > stone_x_upper_limit || stone_x_lower_limit > stone_position.x)
+                {
+                    stone_bodies[index]->SetTransform(b2Vec2(0.f, 0.f), 0.f);
+                    stone_bodies[index]->SetAwake(false);
+                    stone_bodies[index]->SetEnabled(false);
+                    is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
+                    continue;
+                }
                 // ストーンの速度を計算
                 float const new_stone_speed = stone_speed + longitudinal_acceleration(stone_speed) * seconds_per_frame;
                 if (new_stone_speed <= 0.f)
@@ -355,8 +379,25 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     moved.push_back(index);
 }
 
+void SimulatorFCV1::set_status(int status)
+{
+    this->status = status;
+}
+
 digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
 {
+    if (this->total_shot < 5)
+    {
+        if (this->status == 0)
+        {
+            is_in_playarea();
+        }
+        else if (this->status == 1)
+        {
+            no_tick_rule();
+        }
+    }
+    
     digitalcurling3::StoneDataVector stones_data;
     for (b2Body *body : stone_bodies)
     {
@@ -385,7 +426,7 @@ StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team)
+std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team)
 {
     this->shot = total_shot;
     this->shot_per_team = shot_per_team;
@@ -406,10 +447,9 @@ std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulato
     simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id);
 
     trajectory = simulatorFCV1->step(0.001);
-    free_guard_zone_flag = simulatorFCV1->is_in_playarea();
     simulated_stones = simulatorFCV1->get_stones();
 
-    result = convert_stonedata(simulated_stones);
+    stones_positions = convert_stonedata(simulated_stones);
 
     count = 0;
     for (const std::vector<StonePosition> &step_stone_data : trajectory)
@@ -429,7 +469,7 @@ std::tuple<py::array_t<double>, unsigned int, py::list> StoneSimulator::simulato
         count++;
     }
 
-    return std::make_tuple(result, free_guard_zone_flag, trajectory_list);
+    return std::make_tuple(stones_positions, trajectory_list);
 }
 
 // main関数
