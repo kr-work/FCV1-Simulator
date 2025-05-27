@@ -366,8 +366,9 @@ void SimulatorFCV1::set_stones()
     }
 }
 
-void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id)
+void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id, unsigned int applied_rule)
 {
+    this->applied_rule = applied_rule;
     this->shot_per_team = shot_per_team;
     int index = this->shot_per_team + team_id * 8;
     stone_bodies[index]->SetLinearVelocity(b2Vec2(velocity_x, velocity_y));
@@ -379,20 +380,15 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     moved.push_back(index);
 }
 
-void SimulatorFCV1::set_status(int status)
-{
-    this->status = status;
-}
-
 digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
 {
     if (this->total_shot < 5)
     {
-        if (this->status == 0)
+        if (this->applied_rule == 0)
         {
             is_in_playarea();
         }
-        else if (this->status == 1)
+        else if (this->applied_rule == 1)
         {
             no_tick_rule();
         }
@@ -426,7 +422,7 @@ StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team)
+std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
     this->shot = total_shot;
     this->shot_per_team = shot_per_team;
@@ -444,7 +440,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     simulatorFCV1 = new SimulatorFCV1(storage);
     simulatorFCV1->change_shot(this->shot);
     simulatorFCV1->set_stones();
-    simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id);
+    simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id, applied_rule);
 
     trajectory = simulatorFCV1->step(0.001);
     simulated_stones = simulatorFCV1->get_stones();
