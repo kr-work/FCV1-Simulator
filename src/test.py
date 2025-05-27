@@ -17,9 +17,8 @@ angular_velocity = data["angular_velocities"]
 team_id = data["team_id"]
 applied_rule = data["applied_rule"]
 
-
-np_x_velocity = float(x_velocity)
-np_y_velocity = float(y_velocity)
+np_x_velocity = np.float32(-0.088)
+np_y_velocity = np.float32(2.438)
 np_angular_velocity = int(angular_velocity)
 
 result, trajectory = stone_simulator.simulator(np_position, shot, np_x_velocity, np_y_velocity, np_angular_velocity, team_id, shot_per_team, applied_rule)

@@ -327,7 +327,6 @@ private:
     bool free_guard_zone;
     b2World world;
     b2BodyDef stone_body_def;
-    int status;
     std::array<b2Body *, static_cast<std::size_t>(kStoneMax)> stone_bodies;
 };
 
@@ -359,7 +358,7 @@ private:
     json config;
     int shot_per_team;
     unsigned int team_id;
-    int shot;
+    int total_shot;
     int thread_id;
     int index;
     int x_velocities_length;

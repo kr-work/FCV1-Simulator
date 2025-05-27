@@ -140,9 +140,9 @@ SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &ston
     world.SetContactListener(&contact_listener_);
 }
 
-void SimulatorFCV1::change_shot(int shot)
+void SimulatorFCV1::change_shot(int total_shot)
 {
-    this->shot = shot;
+    this->total_shot = total_shot;
 }
 
 bool SimulatorFCV1::is_freeguardzone(b2Body *body)
@@ -326,9 +326,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
 void SimulatorFCV1::set_stones()
 {
     // update bodies
-    int ally_position_size = shot / 2 + 1;
-    int opponent_position_size = shot / 2 + 9;
-    for (size_t i = 0; i < ally_position_size; ++i)
+    for (size_t i = 0; i < kStoneMax; ++i)
     {
         const digitalcurling3::StoneData &stone = stones[i];
         digitalcurling3::Vector2 position = stone.position;
@@ -341,27 +339,6 @@ void SimulatorFCV1::set_stones()
             stone_bodies[i]->SetEnabled(true);
             stone_bodies[i]->SetAwake(true);
             stone_bodies[i]->SetTransform(b2Vec2(position.x, position.y), 0.f);
-        }
-    }
-
-    for (size_t i = 8; i < opponent_position_size; ++i)
-    {
-        const digitalcurling3::StoneData &stone = stones[i];
-        digitalcurling3::Vector2 position = stone.position;
-        if (position.x == 0.f && position.y == 0.f)
-        {
-            stone_bodies[i]->SetEnabled(false);
-        }
-        else
-        {
-            stone_bodies[i]->SetEnabled(true);
-            stone_bodies[i]->SetAwake(true);
-            stone_bodies[i]->SetTransform(b2Vec2(position.x, position.y), 0.f);
-        }
-
-        if (this->shot < 5)
-        {
-            freeguardzone_checker();
         }
     }
 }
@@ -378,6 +355,18 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
     stone_bodies[index]->SetTransform(b2Vec2(0.0f, 0.0f), 0.f);
     is_awake.push_back(index);
     moved.push_back(index);
+
+    if (this->total_shot < 5)
+    {
+        if (applied_rule == 0)    // applied_rule=0: apply five rock rule
+        {
+            freeguardzone_checker();
+        }
+        else if (applied_rule == 1) // applied_rule=1: apply no tick rule
+        {
+            no_tick_checker();
+        }
+    }
 }
 
 digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
@@ -408,14 +397,14 @@ digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
     return stones_data;
 }
 
-StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
+StoneSimulator::StoneSimulator() : storage(), trajectory()
 {
     storage.reserve(16);
 }
 
 /// \brief Function to call from python
 /// \param[in] stone_positions 16 stones' positions(The first 8 stones are the first attacker's stones, the last 8 stones are the second attacker's stones)
-/// \param[in] shot The number of shots
+/// \param[in] total_shot The number of shots
 /// \param[in] x_velocities The x component of the velocity of the stone to be thrown
 /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
 /// \param[in] angular_sign 1 -> cw, -1 -> ccw
@@ -424,7 +413,7 @@ StoneSimulator::StoneSimulator() : storage(), shot(), trajectory()
 /// \returns The positions of the stones after the simulations
 std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
-    this->shot = total_shot;
+    this->total_shot = total_shot;
     this->shot_per_team = shot_per_team;
     this->team_id = team_id;
     storage.clear();
@@ -438,7 +427,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     }
 
     simulatorFCV1 = new SimulatorFCV1(storage);
-    simulatorFCV1->change_shot(this->shot);
+    simulatorFCV1->change_shot(this->total_shot);
     simulatorFCV1->set_stones();
     simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id, applied_rule);
 
