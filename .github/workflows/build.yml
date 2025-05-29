@@ -120,4 +120,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
-          gh release create ${VERSION} -t "${VERSION}" simulator-${{runner.os}}-py${{matrix.python-version}}/src/build/simulator.so
+          gh release create ${VERSION} -t "${VERSION}" simulator-${{runner.os}}-py${{matrix.python-version}}/simulator.so
