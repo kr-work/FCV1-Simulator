@@ -37,6 +37,14 @@ jobs:
         run: |
           sudo apt-get install xorg-dev
 
+      - name: git checkout submodules
+        run: |
+          git submodule update --init --recursive
+          cd extern/box2d
+          git checkout 9ebbbcd960ad424e03e5de6e66a40764c16f51bc
+          cd ../json
+          git checkout 11a835df85677002a8aadc5b4e945684c5b7f68b
+
       - name: Cache box2d
         id: box2d-cache
         uses: actions/cache@v4
@@ -58,7 +66,6 @@ jobs:
       - if: ${{ steps.box2d-cache.outputs.cache-hit != 'true' }}
         name: Build box2d
         run: |
-          git submodule update --init --recursive
           cd extern/box2d
           mkdir build
           cd build
@@ -69,7 +76,6 @@ jobs:
       - if: ${{ steps.json-cache.outputs.cache-hit != 'true' }}
         name: Build json
         run: |
-          git submodule update --init --recursive
           cd extern/json
           mkdir build
           cd build
@@ -99,7 +105,7 @@ jobs:
         # python-version: ["3.9", "3.10", "3.11", "3.12"]
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    runs-on: ${{matrix.os}}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -114,4 +120,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
-          gh release create ${VERSION} -t "${VERSION}" ./simulator-${{runner.os}}-py${{matrix.python-version}}/src/build/simulator.so
+          gh release create ${VERSION} -t "${VERSION}" simulator-${{runner.os}}-py${{matrix.python-version}}/src/build/simulator.so
