@@ -49,23 +49,24 @@ jobs:
         id: box2d-cache
         uses: actions/cache@v4
         with:
-          path: extern/box2d/build
-          key: box2d-${{ runner.os }}-${{ hashFiles('extern/box2d/CMakeLists.txt') }}
+          path: extern/box2d
+          key: box2d-${{ matrix.os }}-${{ hashFiles('extern/box2d/CMakeLists.txt') }}
           restore-keys: |
-            box2d-${{ runner.os }}-
+            box2d-${{ matrix.os }}-
 
       - name: Cache json
         id: json-cache
         uses: actions/cache@v4
         with:
-          path: extern/json/build
-          key: json-${{ runner.os }}-${{ hashFiles('extern/json/CMakeLists.txt') }}
+          path: extern/json
+          key: json-${{ matrix.os }}-${{ hashFiles('extern/json/CMakeLists.txt') }}
           restore-keys: |
-            json-${{ runner.os }}-
+            json-${{ matrix.os }}-
 
       - if: ${{ steps.box2d-cache.outputs.cache-hit != 'true' }}
         name: Build box2d
         run: |
+          ls
           cd extern/box2d
           mkdir build
           cd build
@@ -90,12 +91,13 @@ jobs:
           cd build
           cmake ..
           cmake --build . --config Release
+          ls
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: simulator-${{runner.os}}-py${{matrix.python-version}}
-          path: src/build/Release/simulator.so
+          name: simulator-${{matrix.os}}-py${{matrix.python-version}}
+          path: src/build/simulator.so
 
   release:
     needs: build
@@ -116,7 +118,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: simulator-${{runner.os}}-py${{matrix.python-version}}
+          name: simulator-${{matrix.os}}-py${{matrix.python-version}}
     
       - name: Create release
         env:
