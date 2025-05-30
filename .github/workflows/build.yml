@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: extern/box2d/build
-          key: box2d-${{ runner.os }}-${{ hashFiles('extern/box2d') }}
+          key: box2d-${{ runner.os }}-${{ hashFiles('extern/box2d/lib/libbox2d.a') }}
           restore-keys: |
             box2d-${{ runner.os }}-
 
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: extern/json/build
-          key: json-${{ runner.os }}-${{ hashFiles('extern/json') }}
+          key: json-${{ runner.os }}-${{ hashFiles('extern/json/build/share/cmake/nlohmann_json/nlohmann_jsonConfig.cmake') }}
           restore-keys: |
             json-${{ runner.os }}-
 
