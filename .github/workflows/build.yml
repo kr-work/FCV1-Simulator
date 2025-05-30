@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: extern/json/build
-          key: json-${{ runner.os }}-${{ hashFiles('extern/json/build/share/cmake/nlohmann_json/nlohmann_jsonConfig.cmake') }}
+          key: json-${{ runner.os }}-${{ hashFiles('extern/json/CMakeLists.txt') }}
           restore-keys: |
             json-${{ runner.os }}-
 
@@ -95,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: simulator-${{runner.os}}-py${{matrix.python-version}}
-          path: src/build/Releasesimulator.so
+          path: src/build/Release/simulator.so
 
   release:
     needs: build
