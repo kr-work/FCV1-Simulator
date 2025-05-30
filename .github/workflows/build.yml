@@ -85,7 +85,7 @@ jobs:
 
       - name: Build simulator
         run: |
-          cd ../../../src
+          cd src
           mkdir build
           cd build
           cmake ..
