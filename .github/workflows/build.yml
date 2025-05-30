@@ -45,26 +45,7 @@ jobs:
           cd ../json
           git checkout 11a835df85677002a8aadc5b4e945684c5b7f68b
 
-      - name: Cache box2d
-        id: box2d-cache
-        uses: actions/cache@v4
-        with:
-          path: extern/box2d
-          key: box2d-${{ matrix.os }}-${{ hashFiles('extern/box2d/CMakeLists.txt') }}
-          restore-keys: |
-            box2d-${{ matrix.os }}-
-
-      - name: Cache json
-        id: json-cache
-        uses: actions/cache@v4
-        with:
-          path: extern/json
-          key: json-${{ matrix.os }}-${{ hashFiles('extern/json/CMakeLists.txt') }}
-          restore-keys: |
-            json-${{ matrix.os }}-
-
-      - if: ${{ steps.box2d-cache.outputs.cache-hit != 'true' }}
-        name: Build box2d
+      - name: Build box2d
         run: |
           ls
           cd extern/box2d
@@ -74,8 +55,7 @@ jobs:
           cmake --build . --config Release
           cmake --build . --target install --config Release
 
-      - if: ${{ steps.json-cache.outputs.cache-hit != 'true' }}
-        name: Build json
+      - name: Build json
         run: |
           cd extern/json
           mkdir build
@@ -104,16 +84,9 @@ jobs:
 
   release:
     needs: build
-    strategy:
-      matrix:
-        # os: [ubuntu-22.04, windows-latest, macos-latest]
-        os: [ubuntu-22.04]
-        # os: [windows-latest]
-        # python-version: ["3.9"]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
     permissions:
       contents: write
-    runs-on: ${{matrix.os}}
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
