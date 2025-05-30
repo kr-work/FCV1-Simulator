@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: extern/box2d/build
-          key: box2d-${{ runner.os }}-${{ hashFiles('extern/box2d/lib/libbox2d.a') }}
+          key: box2d-${{ runner.os }}-${{ hashFiles('extern/box2d/CMakeLists.txt') }}
           restore-keys: |
             box2d-${{ runner.os }}-
 
@@ -82,6 +82,9 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_INSTALL_PREFIX="./" ..
           cmake --build .
           cmake --build . --target install
+
+      - name: Build simulator
+        run: |
           cd ../../../src
           mkdir build
           cd build
@@ -92,7 +95,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: simulator-${{runner.os}}-py${{matrix.python-version}}
-          path: src/build/simulator.so
+          path: src/build/Releasesimulator.so
 
   release:
     needs: build
@@ -114,7 +117,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: simulator-${{runner.os}}-py${{matrix.python-version}}
-          path: .
     
       - name: Create release
         env:
@@ -122,4 +124,4 @@ jobs:
         run: |
           ls -l
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
-          gh release create ${VERSION} -t "${VERSION}" simulator-${{runner.os}}-py${{matrix.python-version}}/simulator.so
+          gh release create ${VERSION} -t "${VERSION}" ./simulator.so
