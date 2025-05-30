@@ -114,10 +114,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: simulator-${{runner.os}}-py${{matrix.python-version}}
+          path: .
     
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ls -l
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
           gh release create ${VERSION} -t "${VERSION}" simulator-${{runner.os}}-py${{matrix.python-version}}/simulator.so
