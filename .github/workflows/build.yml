@@ -13,8 +13,8 @@ jobs:
         # os: [ubuntu-22.04, windows-latest, macos-latest]
         os: [ubuntu-22.04]
         # os: [windows-latest]
-        python-version: ["3.9"]
-        # python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # python-version: ["3.9"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     runs-on: ${{matrix.os}}
     steps:
@@ -91,13 +91,16 @@ jobs:
           cd build
           cmake ..
           cmake --build . --config Release
-          ls
+
+      - name: Copy artifact for upload
+        run: |
+          cp src/build/simulator.so simulator-${{ matrix.os }}-py${{ matrix.python-version }}.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: simulator-${{matrix.os}}-py${{matrix.python-version}}
-          path: src/build/simulator.so
+          path: simulator-${{ matrix.os }}-py${{ matrix.python-version }}.so
 
   release:
     needs: build
@@ -106,8 +109,8 @@ jobs:
         # os: [ubuntu-22.04, windows-latest, macos-latest]
         os: [ubuntu-22.04]
         # os: [windows-latest]
-        python-version: ["3.9"]
-        # python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # python-version: ["3.9"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     permissions:
       contents: write
     runs-on: ${{matrix.os}}
@@ -118,7 +121,8 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: simulator-${{matrix.os}}-py${{matrix.python-version}}
+          pattern: simulator-*
+          merge-multiple: true
     
       - name: Create release
         env:
@@ -126,4 +130,4 @@ jobs:
         run: |
           ls -l
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
-          gh release create ${VERSION} -t "${VERSION}" ./simulator.so
+          gh release create ${VERSION} -t "${VERSION}" simulator-*.so
