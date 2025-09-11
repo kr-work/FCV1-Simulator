@@ -49,13 +49,13 @@ inline float longitudinal_acceleration(float speed)
 /// \param[in] speed The speed of the stone
 /// \param[in] angularVelocity The angular velocity of the stone
 /// \returns The yaw rate
-inline float yaw_tate(float speed, float angularVelocity)
+inline float yaw_rate(float speed, float angularVelocity, float power = -0.8f)
 {
     if (std::abs(angularVelocity) <= EPSILON)
     {
         return 0.f;
     }
-    return (angularVelocity > 0.f ? 1.0f : -1.0f) * 0.00820f * std::pow(speed, -0.8f);
+    return (angularVelocity > 0.f ? 1.0f : -1.0f) * 0.00820f * std::pow(speed, power);
 }
 
 /// \brief To calculate the angular acceleration
@@ -241,7 +241,7 @@ void SimulatorFCV1::no_tick_rule()
     }
 }
 
-std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_frame)
+std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_frame, float power)
 {
     trajectory_list.clear();
     // simulate
@@ -280,7 +280,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 }
                 else
                 {
-                    float const yaw = yaw_tate(stone_speed, angular_velocity) * seconds_per_frame;
+                    float const yaw = yaw_rate(stone_speed, angular_velocity, power) * seconds_per_frame;
                     float const longitudinal_velocity = new_stone_speed * std::cos(yaw);
                     float const transverse_velocity = new_stone_speed * std::sin(yaw);
                     b2Vec2 const &e_longitudinal = normalized_stone_velocity;
@@ -400,6 +400,12 @@ digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
 StoneSimulator::StoneSimulator() : storage(), trajectory()
 {
     storage.reserve(16);
+    simulatorFCV1 = new SimulatorFCV1(storage);
+}
+
+void StoneSimulator::set_power(float power)
+{
+    this->power = power;
 }
 
 /// \brief Function to call from python
@@ -426,12 +432,11 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
         storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2 * i), stone_positions.at(2 * i + 1))));
     }
 
-    simulatorFCV1 = new SimulatorFCV1(storage);
     simulatorFCV1->change_shot(this->total_shot);
     simulatorFCV1->set_stones();
     simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id, applied_rule);
 
-    trajectory = simulatorFCV1->step(0.001);
+    trajectory = simulatorFCV1->step(0.001, this->power);
     simulated_stones = simulatorFCV1->get_stones();
 
     stones_positions = convert_stonedata(simulated_stones);
@@ -463,5 +468,6 @@ PYBIND11_MODULE(simulator, m)
 {
     py::class_<StoneSimulator>(m, "StoneSimulator")
         .def(py::init<>())
-        .def("simulator", &StoneSimulator::simulator);
+        .def("simulator", &StoneSimulator::simulator)
+        .def("set_power", &StoneSimulator::set_power);
 }

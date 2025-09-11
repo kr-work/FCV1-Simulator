@@ -17,8 +17,8 @@ constexpr float y_lower_limit = 32.004f;
 constexpr float y_upper_limit = 40.234f;
 constexpr float x_upper_limit = 2.375f;
 constexpr float x_lower_limit = -2.375f;
-constexpr float stone_x_upper_limit = x_upper_limit - 2 * kStoneRadius;
-constexpr float stone_x_lower_limit = x_lower_limit + 2 * kStoneRadius;
+constexpr float stone_x_upper_limit = x_upper_limit - kStoneRadius;
+constexpr float stone_x_lower_limit = x_lower_limit + kStoneRadius;
 constexpr float tee_line = 38.405f;
 constexpr float min_y = 30.0f;
 constexpr float house_radius = 1.829f;
@@ -304,7 +304,7 @@ public:
     bool on_center_line(b2Body *body);
     void no_tick_checker();
     void no_tick_rule();
-    std::vector<std::vector<StonePosition>> step(float seconds_per_frame);
+    std::vector<std::vector<StonePosition>> step(float seconds_per_frame, float power);
     void set_stones();
     void set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id, unsigned int applied_rule);
     digitalcurling3::StoneDataVector get_stones();
@@ -336,6 +336,7 @@ class StoneSimulator
 public:
     StoneSimulator();
     std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team, unsigned int applied_rule);
+    void set_power(float power);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;
@@ -354,6 +355,7 @@ private:
     double y_velocity;
     double angular_velocity;
     unsigned int applied_rule;      // 0: five lock, 1: no tick
+    float power = -0.8f;       // default power
     SimulatorFCV1 *simulatorFCV1;
     json config;
     int shot_per_team;
