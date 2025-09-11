@@ -74,7 +74,7 @@ jobs:
 
       - name: Copy artifact for upload
         run: |
-          cp src/build/simulator.so simulator-${{ matrix.os }}-py${{ matrix.python-version }}.dll
+          cp src/build/simulator.dll simulator-${{ matrix.os }}-py${{ matrix.python-version }}.dll
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
