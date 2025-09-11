@@ -74,13 +74,13 @@ jobs:
 
       - name: Copy artifact for upload
         run: |
-          cp src/build/simulator.so simulator-${{ matrix.os }}-py${{ matrix.python-version }}.so
+          cp src/build/simulator.so simulator-${{ matrix.os }}-py${{ matrix.python-version }}.dll
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: simulator-${{matrix.os}}-py${{matrix.python-version}}
-          path: simulator-${{ matrix.os }}-py${{ matrix.python-version }}.so
+          path: simulator-${{ matrix.os }}-py${{ matrix.python-version }}.dll
 
   release:
     needs: build
@@ -103,4 +103,4 @@ jobs:
         run: |
           ls -l
           VERSION=$(echo "${GITHUB_REF}" | cut -d'/' -f3)
-          gh release create ${VERSION} -t "${VERSION}" simulator-*.so
+          gh release create ${VERSION} -t "${VERSION}" simulator-*.dll
