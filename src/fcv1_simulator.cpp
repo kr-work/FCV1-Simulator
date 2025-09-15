@@ -49,13 +49,15 @@ inline float longitudinal_acceleration(float speed)
 /// \param[in] speed The speed of the stone
 /// \param[in] angularVelocity The angular velocity of the stone
 /// \returns The yaw rate
-inline float yaw_rate(float speed, float angularVelocity, float power = -0.8f)
+inline float yaw_rate(float speed, float angularVelocity, float power = 1.0f)
 {
     if (std::abs(angularVelocity) <= EPSILON)
     {
         return 0.f;
     }
-    return (angularVelocity > 0.f ? 1.0f : -1.0f) * 0.00820f * std::pow(speed, power);
+    float boost = speed_control / (speed + speed_control);
+    float spin_control = 1.0f + (power - 1.0f) * 1.0f / boost;
+    return (angularVelocity > 0.f ? 1.0f : -1.0f) * 0.00820f * std::pow(speed, -0.8f) * spin_control;
 }
 
 /// \brief To calculate the angular acceleration

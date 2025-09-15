@@ -26,6 +26,7 @@ constexpr float EPSILON = std::numeric_limits<float>::epsilon();
 constexpr size_t num_teams = 2;
 constexpr size_t stones_per_team = 8;
 constexpr size_t num_coordinates = 2;
+constexpr float speed_control = 0.25f;
 
 struct Velocity
 {
@@ -355,7 +356,7 @@ private:
     double y_velocity;
     double angular_velocity;
     unsigned int applied_rule;      // 0: five lock, 1: no tick
-    float power = -0.8f;       // default power
+    float power = 1.0f;       // default power
     SimulatorFCV1 *simulatorFCV1;
     json config;
     int shot_per_team;

@@ -1,7 +1,7 @@
 {
   "position": [
     0.0,
-    34.0,
+    0.0,
     0.0,
     0.0,
     0.0,
@@ -35,7 +35,7 @@
   ],
   "shot": 0,
   "shot_per_team": 0,
-  "team_id": 1,
+  "team_id": 0,
   "applied_rule": 0,
   "x_velocities": -0.12,
   "y_velocities": 2.38,
