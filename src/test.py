@@ -1,5 +1,7 @@
 import numpy as np
 from build.simulator import StoneSimulator
+
+from pprint import pprint
 import json
 
 stone_simulator = StoneSimulator()
@@ -7,23 +9,22 @@ stone_simulator = StoneSimulator()
 with open("data.json", "r") as read_file:
     data = json.load(read_file)
 
-position: list = data["position"]
-np_position = np.array(position)
+team0_position: list = data["team0_positions"]
+team1_position: list = data["team1_positions"]
+np_team0_position = np.array(team0_position)
+np_team1_position = np.array(team1_position)
 shot = data["shot"]
 shot_per_team = data["shot_per_team"]
-x_velocity = data["x_velocities"]
-y_velocity = data["y_velocities"]
-angular_velocity = data["angular_velocities"]
 team_id = data["team_id"]
-applied_rule = data["applied_rule"]
+x_velocities: float = data["x_velocities"]
+y_velocities: float = data["y_velocities"]
+angular_velocities: int = data["angular_velocities"]
 
-np_x_velocity = np.float32(-0.088)
-np_y_velocity = np.float32(2.438)
-np_angular_velocity = int(angular_velocity)
-stone_simulator.set_power(1.01)
-
-result, trajectory = stone_simulator.simulator(np_position, shot, np_x_velocity, np_y_velocity, np_angular_velocity, team_id, shot_per_team, applied_rule)
+simulated_stones_position, trajectory = stone_simulator.simulator(np_team0_position, np_team1_position, shot, x_velocities, y_velocities, angular_velocities, team_id, shot_per_team, 1)
 
 # print(result)
-print(result)
-# print(trajectory)
+# print(flag)
+for i in range(len(simulated_stones_position)):
+    pprint(simulated_stones_position[i])
+
+# 1.9991474151611328 39.983848571777344

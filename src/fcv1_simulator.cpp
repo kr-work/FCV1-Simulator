@@ -69,21 +69,30 @@ inline float angular_acceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones)
-{
-    const int num_coordinates = 2; // x and y coordinates per stone
-    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({num_teams, stones_per_team, num_coordinates}));
-    py::detail::unchecked_mutable_reference<double, 3> buf = stones_positions.mutable_unchecked<3>();
+py::array_t<double> convert_stonedata(const std::vector<digitalcurling3::StoneData>& simulated_stones) {
 
-    for (size_t i = 0; i < 16; ++i)
-    {
-        int team_id = i / stones_per_team;
-        int stone_id = i % stones_per_team;
-        buf(team_id, stone_id, 0) = simulated_stones.stones[i].position.x;
-        buf(team_id, stone_id, 1) = simulated_stones.stones[i].position.y;
+    // 1次元配列を作成（各ストーンのx, y座標を順に格納）
+    size_t total_size = stones_per_simulation * num_coordinates;
+    std::vector<double> temp_result (total_size, 0.0);
+
+
+    for (int i = 0; i < 8; ++i) {
+        temp_result[i * 2 + 0] = simulated_stones[i].position.x;
+        temp_result[i * 2 + 1] = simulated_stones[i].position.y;
+        temp_result[(8 + i) * 2 + 0] = simulated_stones[8 + i].position.x;
+        temp_result[(8 + i) * 2 + 1] = simulated_stones[8 + i].position.y;
     }
 
-    return stones_positions;
+    std::vector<py::ssize_t> shape = {
+        static_cast<py::ssize_t>(2),                // team0とteam1の2チーム
+        static_cast<py::ssize_t>(8),                // 各チームのストーン数
+        static_cast<py::ssize_t>(2)                 // ストーンの位置を示す座標(x, y)
+    };
+    // 4次元配列に変換
+    py::array_t<double> result(shape);
+    std::memcpy(result.mutable_data(), temp_result.data(), total_size * sizeof(double));
+
+    return result;
 }
 
 void SimulatorFCV1::ContactListener::PostSolve(b2Contact *contact, const b2ContactImpulse *impulse)
@@ -265,7 +274,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 trajectory.push_back(pos);
 
                 // ストーンがシート外の場合は計算から除外
-                if (stone_position.x > stone_x_upper_limit || stone_x_lower_limit > stone_position.x)
+                if (stone_position.x > stone_x_upper_limit || stone_x_lower_limit > stone_position.x || stone_position.y > stone_y_upper_limit)
                 {
                     stone_bodies[index]->SetTransform(b2Vec2(0.f, 0.f), 0.f);
                     stone_bodies[index]->SetAwake(false);
@@ -419,7 +428,7 @@ void StoneSimulator::set_power(float power)
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
+std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> team0_stone_positions, py::array_t<double> team1_stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
     this->total_shot = total_shot;
     this->shot_per_team = shot_per_team;
@@ -428,10 +437,17 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     this->x_velocity = x_velocity;
     this->y_velocity = y_velocity;
     this->angular_velocity = angular_sign * cw;
+    const py::buffer_info &team0_stone_positions_buf = team0_stone_positions.request();
+    const py::buffer_info &team1_stone_positions_buf = team1_stone_positions.request();
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < team0_stone_positions_buf.shape[0]; i++)
     {
-        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2 * i), stone_positions.at(2 * i + 1))));
+        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(*team0_stone_positions.data(i, 0), *team0_stone_positions.data(i, 1))));
+        // storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(*team1_stone_positions.data(i, 0), *team1_stone_positions.data(i, 1))));
+    }
+    for (int i = 0; i < team1_stone_positions_buf.shape[0]; i++)
+    {
+        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(*team1_stone_positions.data(i, 0), *team1_stone_positions.data(i, 1))));
     }
 
     simulatorFCV1->change_shot(this->total_shot);
@@ -441,7 +457,14 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     trajectory = simulatorFCV1->step(0.001, this->power);
     simulated_stones = simulatorFCV1->get_stones();
 
-    stones_positions = convert_stonedata(simulated_stones);
+    state_values.clear();
+
+    for (const digitalcurling3::StoneData &stone : simulated_stones.stones)
+    {
+        state_values.push_back(stone.position);
+    }
+
+    stones_positions = convert_stonedata(state_values);
 
     count = 0;
     for (const std::vector<StonePosition> &step_stone_data : trajectory)

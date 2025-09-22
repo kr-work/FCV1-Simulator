@@ -19,12 +19,13 @@ constexpr float x_upper_limit = 2.375f;
 constexpr float x_lower_limit = -2.375f;
 constexpr float stone_x_upper_limit = x_upper_limit - kStoneRadius;
 constexpr float stone_x_lower_limit = x_lower_limit + kStoneRadius;
+constexpr float stone_y_upper_limit = y_upper_limit + kStoneRadius;
 constexpr float tee_line = 38.405f;
 constexpr float min_y = 30.0f;
 constexpr float house_radius = 1.829f;
 constexpr float EPSILON = std::numeric_limits<float>::epsilon();
 constexpr size_t num_teams = 2;
-constexpr size_t stones_per_team = 8;
+constexpr size_t stones_per_simulation = 16;
 constexpr size_t num_coordinates = 2;
 constexpr float speed_control = 0.25f;
 
@@ -336,7 +337,7 @@ class StoneSimulator
 {
 public:
     StoneSimulator();
-    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team, unsigned int applied_rule);
+    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> team0_stone_positions, py::array_t<double> team1_stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team, unsigned int applied_rule);
     void set_power(float power);
 
 private:
