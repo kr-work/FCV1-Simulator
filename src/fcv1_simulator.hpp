@@ -10,6 +10,7 @@ using json = nlohmann::json;
 
 constexpr float kStoneRadius = 0.145f;
 static constexpr ::uint8_t kStoneMax = 16;
+static constexpr ::uint8_t kMDStoneMax = 12;
 constexpr float kPi = 3.14159265359f;
 constexpr float cw = -kPi / 2.f;
 constexpr float ccw = kPi / 2.f;
@@ -304,6 +305,8 @@ public:
     bool on_center_line(b2Body *body);
     void no_tick_checker();
     void no_tick_rule();
+    void modified_fgz_checker();
+    void modified_fgz_rule();
     std::vector<std::vector<StonePosition>> step(float seconds_per_frame);
     void set_stones();
     void set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id, unsigned int applied_rule);
@@ -320,6 +323,7 @@ private:
     std::vector<int> moved;
     std::vector<int> is_no_tick;
     std::vector<int> in_free_guard_zone;
+    std::vector<int> protected_stones_modified_fgz;
     std::vector<StonePosition> trajectory;
     std::vector<std::vector<StonePosition>> trajectory_list;
     digitalcurling3::FiveLockWithID five_lock_with_id;
@@ -335,7 +339,7 @@ class StoneSimulator
 {
 public:
     StoneSimulator();
-    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int first_team_hummer, unsigned int shot_per_team, unsigned int applied_rule);
+    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;

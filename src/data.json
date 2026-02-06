@@ -33,11 +33,11 @@
     0.0,
     0.0
   ],
-  "shot": 0,
-  "shot_per_team": 0,
+  "shot": 4,
+  "shot_per_team": 2,
   "team_id": 1,
-  "applied_rule": 0,
+  "applied_rule": 1,
   "x_velocities": -0.12,
-  "y_velocities": 2.38,
+  "y_velocities": 2.5,
   "angular_velocities": 1.0
 }
