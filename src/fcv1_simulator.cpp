@@ -67,18 +67,21 @@ inline float angular_acceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones)
+py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones, size_t stones_per_team_out)
 {
     const int num_coordinates = 2; // x and y coordinates per stone
-    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({num_teams, stones_per_team, num_coordinates}));
+    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({num_teams, stones_per_team_out, num_coordinates}));
     py::detail::unchecked_mutable_reference<double, 3> buf = stones_positions.mutable_unchecked<3>();
 
-    for (size_t i = 0; i < 16; ++i)
+    // internal stone indexing is always 8 per team: [0..7]=team0, [8..15]=team1
+    for (size_t team = 0; team < num_teams; ++team)
     {
-        int team_id = i / stones_per_team;
-        int stone_id = i % stones_per_team;
-        buf(team_id, stone_id, 0) = simulated_stones.stones[i].position.x;
-        buf(team_id, stone_id, 1) = simulated_stones.stones[i].position.y;
+        for (size_t stone = 0; stone < stones_per_team_out; ++stone)
+        {
+            const size_t internal_index = team * 8 + stone;
+            buf(team, stone, 0) = simulated_stones.stones[internal_index].position.x;
+            buf(team, stone, 1) = simulated_stones.stones[internal_index].position.y;
+        }
     }
 
     return stones_positions;
@@ -493,7 +496,10 @@ StoneSimulator::StoneSimulator() : storage(), trajectory()
 }
 
 /// \brief Function to call from python
-/// \param[in] stone_positions 16 stones' positions(The first 8 stones are the first attacker's stones, the last 8 stones are the second attacker's stones)
+/// \param[in] stone_positions
+///   - Standard: 16 stones (8 per team). Order: team0[0..7], team1[0..7].
+///   - Mixed doubles: 12 stones (6 per team). Order: team0[0..5], team1[0..5].
+///   Accepts either a flat array of length (stones*2) or a 2D array of shape (stones, 2).
 /// \param[in] total_shot The number of shots
 /// \param[in] x_velocities The x component of the velocity of the stone to be thrown
 /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
@@ -512,9 +518,73 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     this->y_velocity = y_velocity;
     this->angular_velocity = angular_sign * cw;
 
-    for (int i = 0; i < 16; i++)
+    // Parse input: allow 16 stones (standard) or 12 stones (mixed doubles).
+    // Internally we always keep 16 stone slots (8 per team) for consistent IDs.
+    size_t stones_in_input = 0;
+    std::vector<std::pair<double, double>> input_xy;
+    input_xy.reserve(16);
+
+    const py::buffer_info buf_info = stone_positions.request();
+    if (buf_info.ndim == 1)
     {
-        storage.push_back(digitalcurling3::StoneData(digitalcurling3::Vector2(stone_positions.at(2 * i), stone_positions.at(2 * i + 1))));
+        const size_t n = static_cast<size_t>(buf_info.size);
+        if (n != 32 && n != 24)
+        {
+            throw py::value_error("stone_positions must be length 32 (16 stones) or 24 (12 stones) for 1D input");
+        }
+        stones_in_input = n / 2;
+        const py::detail::unchecked_reference<double, 1> r = stone_positions.unchecked<1>();
+        for (size_t i = 0; i < stones_in_input; ++i)
+        {
+            input_xy.emplace_back(r(static_cast<py::ssize_t>(2 * i)), r(static_cast<py::ssize_t>(2 * i + 1)));
+        }
+    }
+    else if (buf_info.ndim == 2)
+    {
+        if (buf_info.shape.size() < 2 || buf_info.shape[1] != 2)
+        {
+            throw py::value_error("stone_positions 2D input must have shape (N, 2)");
+        }
+        const size_t n = static_cast<size_t>(buf_info.shape[0]);
+        if (n != 16 && n != 12)
+        {
+            throw py::value_error("stone_positions must have N=16 (standard) or N=12 (mixed doubles) for 2D input");
+        }
+        stones_in_input = n;
+        const py::detail::unchecked_reference<double, 2> r = stone_positions.unchecked<2>();
+        for (size_t i = 0; i < stones_in_input; ++i)
+        {
+            input_xy.emplace_back(r(static_cast<py::ssize_t>(i), 0), r(static_cast<py::ssize_t>(i), 1));
+        }
+    }
+    else
+    {
+        throw py::value_error("stone_positions must be a 1D or 2D numpy array");
+    }
+
+    // Build internal 16-slot state.
+    storage.clear();
+    storage.resize(16, digitalcurling3::StoneData(digitalcurling3::Vector2(0.0, 0.0)));
+
+    if (stones_in_input == 16)
+    {
+        for (size_t i = 0; i < 16; ++i)
+        {
+            storage[i] = digitalcurling3::StoneData(digitalcurling3::Vector2(static_cast<float>(input_xy[i].first), static_cast<float>(input_xy[i].second)));
+        }
+    }
+    else if (stones_in_input == 12)
+    {
+        // Mixed doubles: 6 stones per team. Map to internal indices [0..5] and [8..13].
+        for (size_t i = 0; i < 6; ++i)
+        {
+            storage[i] = digitalcurling3::StoneData(digitalcurling3::Vector2(static_cast<float>(input_xy[i].first), static_cast<float>(input_xy[i].second)));
+            storage[8 + i] = digitalcurling3::StoneData(digitalcurling3::Vector2(static_cast<float>(input_xy[6 + i].first), static_cast<float>(input_xy[6 + i].second)));
+        }
+    }
+    else
+    {
+        throw py::value_error("stone_positions must contain 12 or 16 stones");
     }
 
     simulatorFCV1 = new SimulatorFCV1(storage);
@@ -535,7 +605,8 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     trajectory = simulatorFCV1->step(0.001);
     simulated_stones = simulatorFCV1->get_stones();
 
-    stones_positions = convert_stonedata(simulated_stones);
+    const size_t stones_per_team_out = (stones_in_input == 12) ? 6 : 8;
+    stones_positions = convert_stonedata(simulated_stones, stones_per_team_out);
 
     count = 0;
     for (const std::vector<StonePosition> &step_stone_data : trajectory)
