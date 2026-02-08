@@ -67,10 +67,14 @@ inline float angular_acceleration(float linearSpeed)
     return -0.025f / clampedSpeed;
 }
 
-py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones, size_t stones_per_team_out)
+py::array_t<double, 3> convert_stonedata(const digitalcurling3::StoneDataVector &simulated_stones, std::size_t stones_per_team_out)
 {
     const int num_coordinates = 2; // x and y coordinates per stone
-    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({num_teams, stones_per_team_out, num_coordinates}));
+
+    const py::ssize_t teams_dim = static_cast<py::ssize_t>(num_teams);
+    const py::ssize_t stones_dim = static_cast<py::ssize_t>(stones_per_team_out);
+    const py::ssize_t coords_dim = static_cast<py::ssize_t>(num_coordinates);
+    py::array_t<double, 3> stones_positions(py::array::ShapeContainer({teams_dim, stones_dim, coords_dim}));
     py::detail::unchecked_mutable_reference<double, 3> buf = stones_positions.mutable_unchecked<3>();
 
     // internal stone indexing is always 8 per team: [0..7]=team0, [8..15]=team1
@@ -167,7 +171,7 @@ void SimulatorFCV1::freeguardzone_checker()
         b2Body *body = stone_bodies[i];
         if (is_freeguardzone(body))
         {
-            in_free_guard_zone.push_back(i);
+            in_free_guard_zone.push_back(static_cast<int>(i));
         }
     }
 }
@@ -219,7 +223,7 @@ void SimulatorFCV1::no_tick_checker()
         float position_y = body -> GetPosition().y;
         if (position_y > y_lower_limit && position_y < (tee_line - house_radius) && on_center_line(body))
         {
-            is_no_tick.push_back(i);
+            is_no_tick.push_back(static_cast<int>(i));
         }
     }
 }
@@ -602,7 +606,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     }
     
 
-    trajectory = simulatorFCV1->step(0.001);
+    trajectory = simulatorFCV1->step(0.001f);
     simulated_stones = simulatorFCV1->get_stones();
 
     const size_t stones_per_team_out = (stones_in_input == 12) ? 6 : 8;
