@@ -13,12 +13,12 @@ shot = data["shot"]
 shot_per_team = data["shot_per_team"]
 x_velocity = data["x_velocities"]
 y_velocity = data["y_velocities"]
-angular_velocity = data["angular_velocities"]
+angular_velocity = np.pi/2
 team_id = data["team_id"]
 applied_rule = data["applied_rule"]
 
 # np_x_velocity = np.float32(-0.088)
-np_x_velocity = np.float32(-0.090)
+np_x_velocity = np.float32(0.090)
 np_y_velocity = np.float32(2.32)
 np_angular_velocity = int(angular_velocity)
 

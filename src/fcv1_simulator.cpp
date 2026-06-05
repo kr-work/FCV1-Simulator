@@ -507,12 +507,12 @@ StoneSimulator::StoneSimulator() : storage(), trajectory()
 /// \param[in] total_shot The number of shots
 /// \param[in] x_velocities The x component of the velocity of the stone to be thrown
 /// \param[in] y_velocities The y component of the velocity of the stone to be thrown
-/// \param[in] angular_sign 1 -> cw, -1 -> ccw
+/// \param[in] angular_velocity The angular velocity of the stone to be thrown (angular_sign 1 -> cw, -1 -> ccw)
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
 /// \param[in] applied_rule The rule to be applied. 0 -> five rock rule, 1 -> no tick rule, 2 -> modified fgz
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_sign, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
+std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
     this->total_shot = total_shot;
     this->shot_per_team = shot_per_team;
@@ -520,7 +520,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     storage.clear();
     this->x_velocity = x_velocity;
     this->y_velocity = y_velocity;
-    this->angular_velocity = angular_sign * cw;
+    this->angular_velocity = angular_velocity;
 
     // Parse input: allow 16 stones (standard) or 12 stones (mixed doubles).
     // Internally we always keep 16 stone slots (8 per team) for consistent IDs.
