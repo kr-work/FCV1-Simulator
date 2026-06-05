@@ -512,7 +512,7 @@ StoneSimulator::StoneSimulator() : storage(), trajectory()
 /// \param[in] shot_per_team The number of shots per team
 /// \param[in] applied_rule The rule to be applied. 0 -> five rock rule, 1 -> no tick rule, 2 -> modified fgz
 /// \returns The positions of the stones after the simulations
-std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
+std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, double angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
     this->total_shot = total_shot;
     this->shot_per_team = shot_per_team;

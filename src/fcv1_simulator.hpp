@@ -339,7 +339,7 @@ class StoneSimulator
 {
 public:
     StoneSimulator();
-    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, int angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule);
+    std::tuple<py::array_t<double, 3>, py::list> simulator(py::array_t<double> stone_positions, int shot, double x_velocity, double y_velocity, double angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule);
 
 private:
     std::vector<digitalcurling3::StoneData> storage;
