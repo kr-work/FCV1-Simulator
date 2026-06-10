@@ -19,11 +19,13 @@ constexpr float y_lower_limit = 32.004f;
 constexpr float y_upper_limit = 40.234f;
 constexpr float x_upper_limit = 2.375f;
 constexpr float x_lower_limit = -2.375f;
-constexpr float stone_x_upper_limit = x_upper_limit - 2 * kStoneRadius;
-constexpr float stone_x_lower_limit = x_lower_limit + 2 * kStoneRadius;
+constexpr float stone_x_upper_limit = x_upper_limit - kStoneRadius;
+constexpr float stone_x_lower_limit = x_lower_limit + kStoneRadius;
+constexpr float stone_y_upper_limit = y_upper_limit + kStoneRadius;
+constexpr float stone_y_lower_limit = y_lower_limit + kStoneRadius;
 constexpr float tee_line = 38.405f;
-constexpr float min_y = 30.0f;
 constexpr float house_radius = 1.829f;
+constexpr float house_touch_radius = house_radius + kStoneRadius;
 constexpr float EPSILON = std::numeric_limits<float>::epsilon();
 constexpr size_t num_teams = 2;
 constexpr size_t stones_per_team = 8;
@@ -287,6 +289,8 @@ public:
 
 class SimulatorFCV1
 {
+    friend struct SimulatorFCV1TestAccess;
+
 public:
     explicit SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones);
     class ContactListener : public b2ContactListener
@@ -300,6 +304,8 @@ public:
         SimulatorFCV1 *const instance_;
     };
     bool is_freeguardzone(b2Body *body);
+    bool is_removed_from_play(int stone_id) const;
+    void restore_pre_shot_state();
     void freeguardzone_checker();
     void change_shot(int shot);
     void is_in_playarea();
@@ -316,10 +322,10 @@ public:
 private:
     ContactListener contact_listener_;
     std::vector<digitalcurling3::StoneData> const &stones;
-    unsigned int applied_rule; // 0: five lock, 1: no tick
+    unsigned int applied_rule; // 0: five-rock, 1: no-tick, 2: mixed doubles
     int shot_per_team;
     int total_shot;
-    float angular_velocity;
+    unsigned int delivering_team_id;
     std::vector<int> is_awake;
     std::vector<int> moved;
     std::vector<int> is_no_tick;
@@ -328,7 +334,7 @@ private:
     std::vector<StonePosition> trajectory;
     std::vector<std::vector<StonePosition>> trajectory_list;
     digitalcurling3::FiveLockWithID five_lock_with_id;
-    int shot;
+    int delivered_stone_id;
     bool free_guard_zone;
     b2World world;
     b2BodyDef stone_body_def;
@@ -358,7 +364,7 @@ private:
     double x_velocity;
     double y_velocity;
     double angular_velocity;
-    unsigned int applied_rule;      // 0: five lock, 1: no tick
+    unsigned int applied_rule;      // 0: five-rock, 1: no-tick, 2: mixed doubles
     SimulatorFCV1 *simulatorFCV1;
     json config;
     int shot_per_team;

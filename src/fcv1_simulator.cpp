@@ -160,19 +160,69 @@ bool SimulatorFCV1::is_freeguardzone(b2Body *body)
     float dx = body->GetPosition().x;
     float dy = body->GetPosition().y - tee_line;
     float distance_squared = dx * dx + dy * dy;
-    if (dy < 0 && distance_squared > house_radius * house_radius && body->GetPosition().y >= min_y)
+    if (dy < 0 && distance_squared > house_touch_radius * house_touch_radius)
     {
         return true;
     }
     return false;
 }
 
-void SimulatorFCV1::freeguardzone_checker()
+bool SimulatorFCV1::is_removed_from_play(int stone_id) const
+{
+    const b2Body *body = stone_bodies[stone_id];
+    const b2Vec2 position = body->GetPosition();
+    const bool delivered_stone_contacted =
+        std::any_of(moved.begin(), moved.end(), [this](int moved_id)
+        {
+            return moved_id != delivered_stone_id;
+        });
+    const bool outside_sheet =
+        position.x >= stone_x_upper_limit ||
+        position.x <= stone_x_lower_limit ||
+        position.y > stone_y_upper_limit;
+    const bool hogged_stone =
+        stone_id == delivered_stone_id &&
+        !delivered_stone_contacted &&
+        position.y <= stone_y_lower_limit;
+
+    return !body->IsEnabled() ||
+           (position.x == 0.0f && position.y == 0.0f) ||
+           outside_sheet ||
+           hogged_stone;
+}
+
+void SimulatorFCV1::restore_pre_shot_state()
 {
     for (size_t i = 0; i < kStoneMax; ++i)
     {
+        const digitalcurling3::StoneData &stone = stones[i];
+        stone_bodies[i]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
+        stone_bodies[i]->SetLinearVelocity(b2Vec2_zero);
+        stone_bodies[i]->SetAngularVelocity(0.f);
+
+        const bool in_play = stone.position.x != 0.f || stone.position.y != 0.f;
+        stone_bodies[i]->SetEnabled(in_play);
+        stone_bodies[i]->SetAwake(in_play);
+    }
+}
+
+void SimulatorFCV1::freeguardzone_checker()
+{
+    in_free_guard_zone.clear();
+    for (size_t i = 0; i < kStoneMax; ++i)
+    {
         b2Body *body = stone_bodies[i];
-        if (is_freeguardzone(body))
+        const b2Vec2 position = body->GetPosition();
+        const bool opponent_stone =
+            static_cast<unsigned int>(i / stones_per_team) != delivering_team_id;
+        const bool outside_sheet =
+            position.x >= stone_x_upper_limit ||
+            position.x <= stone_x_lower_limit ||
+            position.y > stone_y_upper_limit;
+        if (body->IsEnabled() &&
+            opponent_stone &&
+            !outside_sheet &&
+            is_freeguardzone(body))
         {
             in_free_guard_zone.push_back(static_cast<int>(i));
         }
@@ -184,26 +234,10 @@ void SimulatorFCV1::is_in_playarea()
 {
     for (int i : in_free_guard_zone)
     {
-        b2Body *body = stone_bodies[i];
-        float position_x = body->GetPosition().x;
-        float position_y = body->GetPosition().y;
-        if (position_y > y_upper_limit || position_x > stone_x_upper_limit || position_x < stone_x_lower_limit || (position_x == 0.0f && position_y == 0.0f))
+        if (is_removed_from_play(i))
         {
-            for (int i = 0; i < kStoneMax; ++i)
-            {
-                digitalcurling3::StoneData stone = stones[i];
-                stone_bodies[i]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
-                if (stone.position.x == 0.f && stone.position.y == 0.f)
-                {
-                    stone_bodies[i]->SetEnabled(false);
-                    stone_bodies[i]->SetAwake(false);
-                }
-                else
-                {
-                    stone_bodies[i]->SetEnabled(true);
-                    stone_bodies[i]->SetAwake(true);
-                }
-            }
+            restore_pre_shot_state();
+            break;
         }
     }
 }
@@ -220,11 +254,22 @@ bool SimulatorFCV1::on_center_line(b2Body *body)
 
 void SimulatorFCV1::no_tick_checker()
 {
+    is_no_tick.clear();
     for (size_t i = 0; i < kStoneMax; ++i)
     {
         b2Body *body = stone_bodies[i];
-        float position_y = body -> GetPosition().y;
-        if (position_y > y_lower_limit && position_y < (tee_line - house_radius) && on_center_line(body))
+        const b2Vec2 position = body->GetPosition();
+        const bool opponent_stone =
+            static_cast<unsigned int>(i / stones_per_team) != delivering_team_id;
+        const bool outside_sheet =
+            position.x >= stone_x_upper_limit ||
+            position.x <= stone_x_lower_limit ||
+            position.y > stone_y_upper_limit;
+        if (body->IsEnabled() &&
+            opponent_stone &&
+            !outside_sheet &&
+            is_freeguardzone(body) &&
+            on_center_line(body))
         {
             is_no_tick.push_back(static_cast<int>(i));
         }
@@ -238,14 +283,10 @@ void SimulatorFCV1::no_tick_rule()
     {
         b2Body *body = stone_bodies[i];
         float position_x = body->GetPosition().x;
-        float position_y = body->GetPosition().y;
-        if (std::abs(position_x) > kStoneRadius || (position_x == 0.0f && position_y == 0.0f))
+        if (std::abs(position_x) > kStoneRadius ||
+            is_removed_from_play(i))
         {
-            for (size_t j = 0; j < kStoneMax; ++j)
-            {
-                digitalcurling3::StoneData stone = stones[j];
-                stone_bodies[j]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
-            }
+            restore_pre_shot_state();
             break;
         }
     }
@@ -257,16 +298,12 @@ void SimulatorFCV1::modified_fgz_checker()
     for (size_t i = 0; i < kStoneMax; ++i)
     {
         b2Body *body = stone_bodies[i];
-        float position_x = body->GetPosition().x;
-        float position_y = body->GetPosition().y;
-        // 投球前に「プレー中」の石を保護対象にする（ハウス内も含む）
-        // ここでは「プレーから取り除かれたか（場外/無効化/原点扱い）」のみを違反として判定したいので、
-        // 投球前にプレー中である石だけを記録する。
-        if (position_x == 0.0f && position_y == 0.0f)
-        {
-            continue;
-        }
-        if (position_x > stone_x_upper_limit || position_x < stone_x_lower_limit || position_y > y_upper_limit || position_y < y_lower_limit)
+        const b2Vec2 position = body->GetPosition();
+        if (!body->IsEnabled() ||
+            (position.x == 0.0f && position.y == 0.0f) ||
+            position.x >= stone_x_upper_limit ||
+            position.x <= stone_x_lower_limit ||
+            position.y > stone_y_upper_limit)
         {
             continue;
         }
@@ -276,21 +313,10 @@ void SimulatorFCV1::modified_fgz_checker()
 
 void SimulatorFCV1::modified_fgz_rule()
 {
-    // ルール:
-    // そのエンドの最初の3投は、(ハウス内を含む) 既存の石をプレーから取り除いてはいけない。
-    // 違反した場合は投球した石を取り除き、動いた石は投球前の位置に戻す。
-    // この実装では、"取り除いた" を「プレーエリア外へ出た / 無効化された / (0,0)扱いになった」として扱う。
     bool violation = false;
     for (int id : protected_stones_modified_fgz)
     {
-        b2Body *body = stone_bodies[id];
-        b2Vec2 position = body->GetPosition();
-
-        const bool removed_by_engine = !body->IsEnabled();
-        const bool treated_as_removed = (position.x == 0.0f && position.y == 0.0f);
-        const bool out_of_play = (position.x > stone_x_upper_limit || position.x < stone_x_lower_limit || position.y > y_upper_limit || position.y < y_lower_limit);
-
-        if (removed_by_engine || treated_as_removed || out_of_play)
+        if (is_removed_from_play(id))
         {
             violation = true;
             break;
@@ -302,26 +328,7 @@ void SimulatorFCV1::modified_fgz_rule()
         return;
     }
 
-    // 投球前状態(stones)へ復元。
-    // 投球石は投球前は (0,0) として渡される想定なので、結果的に取り除かれる。
-    for (size_t i = 0; i < kStoneMax; ++i)
-    {
-        const digitalcurling3::StoneData &stone = stones[i];
-        stone_bodies[i]->SetTransform(b2Vec2(stone.position.x, stone.position.y), 0.f);
-        stone_bodies[i]->SetLinearVelocity(b2Vec2_zero);
-        stone_bodies[i]->SetAngularVelocity(0.f);
-
-        if (stone.position.x == 0.f && stone.position.y == 0.f)
-        {
-            stone_bodies[i]->SetEnabled(false);
-            stone_bodies[i]->SetAwake(false);
-        }
-        else
-        {
-            stone_bodies[i]->SetEnabled(true);
-            stone_bodies[i]->SetAwake(true);
-        }
-    }
+    restore_pre_shot_state();
 }
 
 std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_frame)
@@ -347,7 +354,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 trajectory.push_back(pos);
 
                 // ストーンがシート外の場合は計算から除外
-                if (stone_position.x > stone_x_upper_limit || stone_x_lower_limit > stone_position.x)
+                if (stone_position.x >= stone_x_upper_limit || stone_position.x <= stone_x_lower_limit)
                 {
                     stone_bodies[index]->SetTransform(b2Vec2(0.f, 0.f), 0.f);
                     stone_bodies[index]->SetAwake(false);
@@ -436,9 +443,11 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
 {
     this->applied_rule = applied_rule;
     this->shot_per_team = shot_per_team;
+    this->delivering_team_id = team_id;
     // 投球するストーンは (shot_per_team, team_id) で一意に決まる。
     // ミックスダブルス等での置き石対応(+1など)は、set_velocity 呼び出し前に shot_per_team を調整して渡す。
     int index = static_cast<int>(this->shot_per_team) + static_cast<int>(team_id) * 8;
+    this->delivered_stone_id = index;
 
     stone_bodies[index]->SetLinearVelocity(b2Vec2(velocity_x, velocity_y));
     stone_bodies[index]->SetAngularVelocity(angular_velocity);
@@ -459,10 +468,10 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
             no_tick_checker();
         }
     }
-    if (applied_rule == 2) // modified free guard zone rule
+    if (applied_rule == 2)
     {
-        // modified FGZ: 最初の3投は全てのプレー中ストーンを保護（ハウス内含む）
-        // 判定と復元は get_stones() 側で行う。
+        // Mixed doubles: before the fourth delivery, no stone already in play
+        // (including positioned and house stones) may be removed.
         if (this->total_shot < 3)
         {
             modified_fgz_checker();
@@ -490,12 +499,15 @@ digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
     }
     
     digitalcurling3::StoneDataVector stones_data;
-    for (b2Body *body : stone_bodies)
+    for (size_t i = 0; i < kStoneMax; ++i)
     {
+        b2Body *body = stone_bodies[i];
         b2Vec2 position = body->GetPosition();
-        if (position.x > stone_x_upper_limit || position.x < stone_x_lower_limit || position.y > y_upper_limit || position.y < y_lower_limit)
+        if (is_removed_from_play(static_cast<int>(i)))
         {
             body->SetTransform(b2Vec2(0.f, 0.f), 0.f);
+            body->SetEnabled(false);
+            body->SetAwake(false);
         }
         b2Vec2 after_position = body->GetPosition();
         stones_data.stones.push_back({digitalcurling3::Vector2(after_position.x, after_position.y)});
@@ -519,7 +531,7 @@ StoneSimulator::StoneSimulator() : storage(), trajectory()
 /// \param[in] angular_velocity The angular velocity of the stone to be thrown (angular_sign 1 -> cw, -1 -> ccw)
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
-/// \param[in] applied_rule The rule to be applied. 0 -> five rock rule, 1 -> no tick rule, 2 -> modified fgz
+/// \param[in] applied_rule The rule to be applied. 0 -> five-rock, 1 -> no-tick, 2 -> mixed doubles
 /// \returns The positions of the stones after the simulations
 std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, double angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
@@ -603,7 +615,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     simulatorFCV1 = new SimulatorFCV1(storage);
     simulatorFCV1->change_shot(this->total_shot);
     simulatorFCV1->set_stones();
-    if (applied_rule == 2) // modified free guard zone rule
+    if (applied_rule == 2)
     {
         // ミックスダブルス想定: 各チームの index 0 を置き石にするため、投球石は +1 した投数で割り当てる。
         simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team + 1, this->team_id, applied_rule);
