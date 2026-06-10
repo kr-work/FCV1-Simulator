@@ -136,7 +136,7 @@ SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &ston
     stone_fixture_def.friction = 0.2f;                                        // 適当というかデフォルト値
     stone_fixture_def.restitution = 1.0;                                      // 完全弾性衝突(完全弾性衝突の根拠は無いし多分違う)
     stone_fixture_def.restitutionThreshold = 0.f;                             // 反発閾値。この値より大きい速度(m/s)で衝突すると反発が適用される。
-    stone_fixture_def.density = 0.5f / (b2_pi * kStoneRadius * kStoneRadius); // kg/m^2
+    stone_fixture_def.density = kStoneMass / (b2_pi * kStoneRadius * kStoneRadius); // kg/m^2
 
     for (size_t i = 0; i < kStoneMax; ++i)
     {
@@ -325,17 +325,11 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
 {
     trajectory_list.clear();
     // simulate
-    bool any_moving = true;
-    while (any_moving)
+    while (!is_awake.empty())
     {
         trajectory.clear();
-        for (size_t index = 0; index < kStoneMax; ++index)
+        for (int &index : is_awake)
         {
-            if (!stone_bodies[index]->IsEnabled())
-            {
-                continue;
-            }
-
             b2Vec2 const stone_velocity = stone_bodies[index]->GetLinearVelocity(); // copy
             auto const [normalized_stone_velocity, stone_speed] = normalize(stone_velocity);
             float const angular_velocity = stone_bodies[index]->GetAngularVelocity();
@@ -345,17 +339,16 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
             if (stone_speed > EPSILON)
             {
                 digitalcurling3::Vector2 stone_position = {stone_bodies[index]->GetPosition().x, stone_bodies[index]->GetPosition().y};
-                StonePosition pos = {static_cast<int>(index), stone_position.x, stone_position.y};
+                StonePosition pos = {index, stone_position.x, stone_position.y};
                 trajectory.push_back(pos);
 
                 // ストーンがシート外の場合は計算から除外
                 if (stone_position.x > stone_x_upper_limit || stone_x_lower_limit > stone_position.x)
                 {
                     stone_bodies[index]->SetTransform(b2Vec2(0.f, 0.f), 0.f);
-                    stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
-                    stone_bodies[index]->SetAngularVelocity(0.f);
                     stone_bodies[index]->SetAwake(false);
                     stone_bodies[index]->SetEnabled(false);
+                    is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
                     continue;
                 }
                 // ストーンの速度を計算
@@ -363,6 +356,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 if (new_stone_speed <= 0.f)
                 {
                     stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
+                    is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
                 }
                 else
                 {
@@ -375,7 +369,10 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                     stone_bodies[index]->SetLinearVelocity(new_stone_velocity);
                 }
             }else{
-                stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
+                is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
+                //if(is_awake.size() != 1){
+                  //  std::cout << "size: " << is_awake.size() << ", normalized_vec_x: " << normalized_stone_velocity.x << ", normalized_vec_y: " << normalized_stone_velocity.y << ", speed: " << stone_speed << std::endl;   
+                //}
             }
 
             // 角速度を計算
@@ -402,23 +399,6 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
             seconds_per_frame,
             8,  // velocityIterations (公式マニュアルでの推奨値は 8)
             3); // positionIterations (公式マニュアルでの推奨値は 3)
-
-        any_moving = false;
-        for (size_t j = 0; j < kStoneMax; ++j)
-        {
-            if (!stone_bodies[j]->IsEnabled())
-            {
-                continue;
-            }
-            b2Vec2 const stone_velocity = stone_bodies[j]->GetLinearVelocity();
-            float const stone_speed = stone_velocity.Length();
-            float const angular_velocity = stone_bodies[j]->GetAngularVelocity();
-            if (stone_speed > EPSILON || std::abs(angular_velocity) > EPSILON)
-            {
-                any_moving = true;
-                break;
-            }
-        }
     }
     return trajectory_list;
 }

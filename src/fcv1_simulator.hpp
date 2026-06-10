@@ -11,6 +11,7 @@ using json = nlohmann::json;
 constexpr float kStoneRadius = 0.145f;
 static constexpr ::uint8_t kStoneMax = 16;
 static constexpr ::uint8_t kMDStoneMax = 12;
+constexpr float kStoneMass = 19.96f; // kg
 constexpr float kPi = 3.14159265359f;
 constexpr float cw = -kPi / 2.f;
 constexpr float ccw = kPi / 2.f;
