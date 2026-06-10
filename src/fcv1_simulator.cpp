@@ -121,7 +121,10 @@ void SimulatorFCV1::ContactListener::add_unique_id(std::vector<int> &list, int i
     }
 }
 
-SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones) : stones(stones), world(b2Vec2(0, 0)), contact_listener_(this)
+SimulatorFCV1::SimulatorFCV1(std::vector<digitalcurling3::StoneData> const &stones)
+    : contact_listener_(this),
+      stones(stones),
+      world(b2Vec2(0, 0))
 {
     stone_body_def.type = b2_dynamicBody;
     stone_body_def.awake = false;
@@ -328,7 +331,8 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
     while (!is_awake.empty())
     {
         trajectory.clear();
-        for (int &index : is_awake)
+        const std::vector<int> active_stones = is_awake;
+        for (int index : active_stones)
         {
             b2Vec2 const stone_velocity = stone_bodies[index]->GetLinearVelocity(); // copy
             auto const [normalized_stone_velocity, stone_speed] = normalize(stone_velocity);
@@ -356,7 +360,6 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 if (new_stone_speed <= 0.f)
                 {
                     stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
-                    is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
                 }
                 else
                 {
@@ -369,7 +372,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                     stone_bodies[index]->SetLinearVelocity(new_stone_velocity);
                 }
             }else{
-                is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
+                stone_bodies[index]->SetLinearVelocity(b2Vec2_zero);
                 //if(is_awake.size() != 1){
                   //  std::cout << "size: " << is_awake.size() << ", normalized_vec_x: " << normalized_stone_velocity.x << ", normalized_vec_y: " << normalized_stone_velocity.y << ", speed: " << stone_speed << std::endl;   
                 //}
@@ -389,6 +392,12 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                     new_angular_velocity = angular_velocity + angular_accel * angular_velocity / std::abs(angular_velocity);
                 }
                 stone_bodies[index]->SetAngularVelocity(new_angular_velocity);
+            }
+
+            if (stone_bodies[index]->GetLinearVelocity().Length() <= EPSILON &&
+                std::abs(stone_bodies[index]->GetAngularVelocity()) <= EPSILON)
+            {
+                is_awake.erase(std::remove(is_awake.begin(), is_awake.end(), index), is_awake.end());
             }
         }
         trajectory_list.push_back(trajectory);
