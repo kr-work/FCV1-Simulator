@@ -52,7 +52,7 @@ inline float longitudinal_acceleration(float speed)
 /// \param[in] speed The speed of the stone
 /// \param[in] angularVelocity The angular velocity of the stone
 /// \returns The yaw rate
-inline float yaw_tate(float speed, float angularVelocity)
+inline float yaw_rate(float speed, float angularVelocity)
 {
     if (std::abs(angularVelocity) <= EPSILON)
     {
@@ -406,7 +406,7 @@ std::vector<std::vector<StonePosition>> SimulatorFCV1::step(float seconds_per_fr
                 }
                 else
                 {
-                    float const yaw = yaw_tate(stone_speed, angular_velocity) * seconds_per_frame;
+                    float const yaw = yaw_rate(stone_speed, angular_velocity) * seconds_per_frame;
                     float const longitudinal_velocity = new_stone_speed * std::cos(yaw);
                     float const transverse_velocity = new_stone_speed * std::sin(yaw);
                     b2Vec2 const &e_longitudinal = normalized_stone_velocity;
