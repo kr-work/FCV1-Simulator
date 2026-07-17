@@ -322,7 +322,7 @@ public:
 private:
     ContactListener contact_listener_;
     std::vector<digitalcurling3::StoneData> const &stones;
-    unsigned int applied_rule; // 0: five-rock, 1: no-tick, 2: mixed doubles
+    unsigned int applied_rule; // 0: five-rock, 1: five-rock + no-tick, 2: mixed doubles
     int shot_per_team;
     int total_shot;
     unsigned int delivering_team_id;
@@ -364,7 +364,7 @@ private:
     double x_velocity;
     double y_velocity;
     double angular_velocity;
-    unsigned int applied_rule;      // 0: five-rock, 1: no-tick, 2: mixed doubles
+    unsigned int applied_rule;      // 0: five-rock, 1: five-rock + no-tick, 2: mixed doubles
     SimulatorFCV1 *simulatorFCV1;
     json config;
     int shot_per_team;

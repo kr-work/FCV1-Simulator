@@ -482,7 +482,7 @@ void SimulatorFCV1::set_stones()
 /// \param[in] angular_velocity The angular velocity of the thrown stone.
 /// \param[in] shot_per_team The shot index within the throwing team.
 /// \param[in] team_id The throwing team ID. 0 -> team0, 1 -> team1.
-/// \param[in] applied_rule The rule to apply. 0 -> five-rock, 1 -> no-tick, 2 -> mixed doubles.
+/// \param[in] applied_rule The rule to apply. 0 -> five-rock, 1 -> five-rock plus no-tick, 2 -> mixed doubles.
 void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angular_velocity, unsigned int shot_per_team, unsigned int team_id, unsigned int applied_rule)
 {
     this->applied_rule = applied_rule;
@@ -507,8 +507,9 @@ void SimulatorFCV1::set_velocity(float velocity_x, float velocity_y, float angul
         {
             freeguardzone_checker();
         }
-        else if (applied_rule == 1) // applied_rule=1: apply no tick rule
+        else if (applied_rule == 1) // applied_rule=1: apply five rock and no tick rules
         {
+            freeguardzone_checker();
             no_tick_checker();
         }
     }
@@ -535,6 +536,7 @@ digitalcurling3::StoneDataVector SimulatorFCV1::get_stones()
         }
         else if (this->applied_rule == 1)
         {
+            is_in_playarea();
             no_tick_rule();
         }
     }
@@ -578,7 +580,7 @@ StoneSimulator::StoneSimulator() : storage(), trajectory()
 /// \param[in] angular_velocity The angular velocity of the stone to be thrown (angular_sign 1 -> cw, -1 -> ccw)
 /// \param[in] team_id The team that throws the stone. Team0 or Team1
 /// \param[in] shot_per_team The number of shots per team
-/// \param[in] applied_rule The rule to be applied. 0 -> five-rock, 1 -> no-tick, 2 -> mixed doubles
+/// \param[in] applied_rule The rule to be applied. 0 -> five-rock, 1 -> five-rock plus no-tick, 2 -> mixed doubles
 /// \returns The positions of the stones after the simulations
 std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array_t<double> stone_positions, int total_shot, double x_velocity, double y_velocity, double angular_velocity, unsigned int team_id, unsigned int shot_per_team, unsigned int applied_rule)
 {
@@ -669,7 +671,7 @@ std::tuple<py::array_t<double, 3>, py::list> StoneSimulator::simulator(py::array
     }
     else
     {
-        // normal five rock rule or no tick rule
+        // normal five rock rule or combined five rock and no tick rules
         simulatorFCV1->set_velocity(this->x_velocity, this->y_velocity, this->angular_velocity, this->shot_per_team, this->team_id, applied_rule);
     }
     
